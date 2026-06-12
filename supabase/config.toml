@@ -144,8 +144,11 @@ max_catalogs = 2
 # [storage.analytics.buckets.my-warehouse]
 
 # Store vector embeddings in S3 for large and durable datasets
+# DESLIGADO (12/06/2026): recurso Pro/hosted que o app não usa; com ele ligado o
+# container de storage trava nas migrações de vector_store (sem S3 local) e o
+# `supabase start` falha no health check.
 [storage.vector]
-enabled = true
+enabled = false
 max_buckets = 10
 max_indexes = 5
 
@@ -416,8 +419,10 @@ verify_jwt = true
 [functions.delete-account]
 verify_jwt = true
 
+# DESLIGADO (12/06/2026): no Windows exigiria expor o daemon do Docker em
+# tcp://localhost:2375 (inseguro) e o app não usa analytics local.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

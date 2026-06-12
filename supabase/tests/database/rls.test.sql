@@ -18,6 +18,19 @@ begin;
 select plan(67);
 
 -- ------------------------------------------------------------
+-- O banco de dev chega SEEDADO (`supabase db reset` roda o seed.sql) e as
+-- asserções de contagem do staff são absolutas — além de o termo ativo do
+-- seed colidir com o termo de teste (uq_one_active_term). A transação
+-- começa zerando as tabelas do app; o rollback final devolve o seed intacto.
+-- ------------------------------------------------------------
+truncate table
+  public.staff, public.families, public.guardians, public.children,
+  public.treatments, public.reminder_prefs, public.measurements,
+  public.adherence_logs, public.consent_terms, public.consents,
+  public.family_invites, public.push_tokens, public.deletion_requests
+  cascade;
+
+-- ------------------------------------------------------------
 -- SEED DE TESTE (como postgres, dono das tabelas → bypassa RLS)
 -- UUIDs fixos para legibilidade:
 --   família A aaaaaaaa-...-01 / criança A ...-02 / tratamento A ...-03
