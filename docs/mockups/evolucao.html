@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evolução · Mockups Lumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --purple-950:#1D1840;--purple-900:#2A2350;--purple-800:#372E7A;--purple:#453A94;
+  --purple-500:#5B4FB5;--purple-400:#6A5FC4;--purple-200:#C9C2EE;--purple-100:#E9E6F8;--purple-50:#F4F2FC;
+  --star:#FFC857;--green:#88B04B;--surface:#F5FAFD;
+  --ink:#334155;--ink-2:#64748B;--ink-3:#94A3B8;--line:#E2E8F0;--coral:#F4976C;
+  /* tinta neutra dos dados clínicos: cinza-azulado, NUNCA semafórico */
+  --data-ink:#3E4A5B;--data-ink-2:#5A6B80;--data-line:#AEB9C8;
+  --font-d:'Nunito','Segoe UI',system-ui,sans-serif;
+  --font-n:'Inter','Segoe UI',system-ui,sans-serif;
+}
+body{font-family:var(--font-d);background:#ECEBF5;color:var(--ink)}
+.page-head{max-width:1100px;margin:0 auto;padding:40px 32px 8px}
+.page-head a{color:var(--purple);font-weight:800;text-decoration:none;font-size:14px}
+.page-head a:hover{text-decoration:underline}
+.page-head h1{font-size:34px;font-weight:900;color:var(--purple-900);margin-top:10px}
+.page-head p.lead{margin-top:8px;font-size:16px;color:var(--ink-2);max-width:760px;line-height:1.55}
+.chips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.chip{font:700 12px var(--font-d);background:#fff;border:1px solid var(--purple-200);color:var(--purple-800);padding:6px 12px;border-radius:999px}
+.chip.dark{background:var(--purple);color:#fff;border-color:var(--purple)}
+.chip.anvisa{background:#FDF3E7;border-color:#E7CFA6;color:#8A6320}
+.frames{display:flex;flex-wrap:wrap;gap:56px;justify-content:center;align-items:flex-start;padding:32px 32px 48px}
+.frame-block{display:flex;flex-direction:column;align-items:center;gap:16px;max-width:430px}
+.frame-label{font:900 15px var(--font-d);color:var(--purple-900);background:#fff;border:1px solid var(--purple-200);padding:8px 18px;border-radius:999px}
+.frame-label.varb{background:var(--purple-900);color:#fff;border-color:var(--purple-900)}
+.notes{list-style:none;background:#fff;border-radius:16px;padding:16px 20px;font-size:13px;line-height:1.6;color:var(--ink-2);width:100%;box-shadow:0 4px 14px rgba(42,35,80,.07)}
+.notes li{padding-left:18px;position:relative;margin:4px 0}
+.notes li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;background:var(--purple-400)}
+.page-foot{text-align:center;padding:18px 0 56px;color:var(--ink-3);font-size:13px}
+
+/* ---------- phone frame ---------- */
+.phone{width:390px;height:844px;border-radius:56px;background:#11101F;padding:10px;box-shadow:0 34px 70px rgba(26,21,64,.38);flex:none}
+.screen{width:100%;height:100%;border-radius:46px;overflow:hidden;position:relative;background:var(--surface);display:flex;flex-direction:column}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:18px;background:#11101F;z-index:60}
+.statusbar{height:50px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 4px;font:600 15px var(--font-n);color:#fff}
+.statusbar .sic{display:flex;gap:6px;align-items:center}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:rgba(16,16,31,.25);z-index:60}
+
+/* ---------- header ---------- */
+.hdr{background:linear-gradient(165deg,var(--purple) 0%,var(--purple-800) 78%);padding-bottom:16px;position:relative;border-radius:0 0 30px 30px}
+.hdr .specks{position:absolute;inset:0;pointer-events:none;opacity:.85}
+.greet{padding:10px 24px 0;position:relative}
+.greet h2{font-size:23px;font-weight:900;color:#fff}
+.greet p{font:500 13px var(--font-n);color:var(--purple-200);margin-top:2px}
+.kids{display:flex;gap:10px;padding:13px 24px 0;position:relative}
+.kid{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 14px 6px 6px;color:#fff;font:800 13px var(--font-d)}
+.kid.on{background:#fff;color:var(--purple-900);border-color:#fff}
+.kid .av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 13px var(--font-d)}
+.av.a{background:var(--purple-200);color:var(--purple-900)}
+.av.p{background:#A8C8DE;color:#1F3A4D}
+
+/* ---------- body ---------- */
+.bod{flex:1;overflow:hidden;padding:14px 16px 6px;display:flex;flex-direction:column;gap:12px}
+.sec-t{font:900 11px var(--font-d);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px}
+
+/* card avaliação da Dra. — ÚNICA interpretação na tela */
+.dra{background:#fff;border-radius:20px;padding:15px 16px;box-shadow:0 6px 18px rgba(42,35,80,.10);border:1px solid var(--purple-100)}
+.dra-top{display:flex;align-items:center;gap:10px}
+.dra-badge{width:38px;height:38px;border-radius:12px;background:var(--purple-50);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:none}
+.dra-top h3{font-size:15px;font-weight:900;color:var(--purple-900)}
+.dra-top p{font:600 11px var(--font-n);color:var(--ink-3)}
+.dra-text{margin-top:11px;font:500 13.5px var(--font-n);color:var(--ink);line-height:1.55}
+.dra-sign{margin-top:11px;border-top:1px solid var(--line);padding-top:9px;font:700 11.5px var(--font-n);color:var(--ink-2)}
+.dra-sign b{display:block;font:900 12.5px var(--font-d);color:var(--purple-900)}
+
+/* card de deltas por olho — TINTA NEUTRA */
+.delta{background:#fff;border-radius:20px;padding:14px 16px;box-shadow:0 6px 18px rgba(42,35,80,.08)}
+.delta-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.delta-head h3{font-size:14.5px;font-weight:900;color:var(--purple-900)}
+.toggle{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.toggle span{font:800 11px var(--font-d);color:var(--ink-2);padding:5px 11px;border-radius:999px}
+.toggle span.on{background:var(--purple);color:#fff}
+.measure{font:800 11px var(--font-d);letter-spacing:.06em;text-transform:uppercase;color:var(--data-ink-2);margin-top:13px}
+.eye{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.eye:last-child{border-bottom:none}
+.eye .lab{font:700 12.5px var(--font-n);color:var(--data-ink-2);flex:none;width:96px}
+.eye .vals{font:600 13.5px var(--font-n);color:var(--data-ink);font-variant-numeric:tabular-nums;flex:1;text-align:right}
+.eye .vals b{font-weight:700;color:var(--data-ink)}
+.eye .vals .arrow{color:var(--data-ink-2);padding:0 4px}
+.eye .chg{font:600 11.5px var(--font-n);color:var(--data-ink-2);font-variant-numeric:tabular-nums;flex:none;width:90px;text-align:right}
+
+/* card gráfico */
+.chart{background:#fff;border-radius:20px;padding:14px 16px 10px;box-shadow:0 6px 18px rgba(42,35,80,.08)}
+.chart-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chart-head h3{font-size:14.5px;font-weight:900;color:var(--purple-900)}
+.chart-legend{display:flex;gap:14px;margin-top:10px;padding:0 2px}
+.cl{display:flex;align-items:center;gap:6px;font:600 11.5px var(--font-n);color:var(--data-ink-2)}
+.cl .swatch{width:18px;height:0;border-top-width:3px;border-top-style:solid}
+.chart-note{font:500 11px var(--font-n);color:var(--ink-3);margin-top:8px;line-height:1.45}
+
+/* card educativo */
+.learn{background:#fff;border-radius:18px;padding:13px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(42,35,80,.06)}
+.learn .li{width:38px;height:38px;border-radius:12px;background:var(--purple-50);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:none}
+.learn .lt{flex:1}
+.learn h4{font-size:13.5px;font-weight:900;color:var(--purple-900)}
+.learn p{font:500 11.5px var(--font-n);color:var(--ink-3);margin-top:1px}
+.learn .chev{color:var(--ink-3)}
+
+.next{display:flex;align-items:center;gap:8px;padding:2px 8px;font:600 12.5px var(--font-n);color:var(--ink-2)}
+.next .ni{color:var(--purple-400)}
+
+/* ---------- tab bar ---------- */
+.tabbar{display:flex;border-top:1px solid var(--line);background:#fff;padding:9px 8px 26px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font:800 11px var(--font-d);color:var(--ink-3)}
+.tab.active{color:var(--purple)}
+
+/* ---------- bottom sheet (representado aberto) ---------- */
+.sheet-frame .screen{justify-content:flex-end}
+.scrim{position:absolute;inset:0;background:rgba(26,21,64,.45);z-index:30}
+.sheet{position:relative;z-index:40;background:#fff;border-radius:26px 26px 0 0;padding:10px 22px 30px;box-shadow:0 -16px 40px rgba(26,21,64,.25)}
+.sheet .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 14px}
+.sheet h3{font-size:19px;font-weight:900;color:var(--purple-900)}
+.sheet .owl{position:absolute;right:18px;top:-50px;z-index:41}
+.sheet-q{display:flex;gap:12px;margin-top:16px}
+.sheet-q .qi{width:36px;height:36px;border-radius:11px;background:var(--purple-50);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:none}
+.sheet-q .qt h4{font-size:14px;font-weight:900;color:var(--purple-900)}
+.sheet-q .qt p{font:500 13px var(--font-n);color:var(--ink-2);line-height:1.55;margin-top:3px}
+.sheet-key{margin-top:16px;background:var(--purple-50);border-radius:14px;padding:13px 15px;font:600 13px var(--font-n);color:var(--purple-900);line-height:1.55}
+.sheet-key b{color:var(--purple)}
+.sheet-close{margin-top:18px;width:100%;background:var(--purple);color:#fff;border:none;border-radius:14px;padding:14px 0;font:900 15px var(--font-d)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="ic-home" viewBox="0 0 24 24">
+  <path d="M4 11 L12 4 L20 11 V20 H14.5 V14.5 H9.5 V20 H4 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24">
+  <path d="M4 20 H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M5 15.5 L10 10.5 L13.8 13.5 L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="ic-more" viewBox="0 0 24 24">
+  <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+</symbol>
+<symbol id="stetho" viewBox="0 0 24 24">
+  <path d="M6 3 V8 A4 4 0 0 0 14 8 V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M10 12 V14 A5 5 0 0 0 20 14 V12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="20" cy="10.5" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/>
+</symbol>
+<symbol id="ruler" viewBox="0 0 24 24">
+  <rect x="3" y="8" width="18" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M7 8 V11 M11 8 V12 M15 8 V11 M19 8 V12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+</symbol>
+<symbol id="eye-q" viewBox="0 0 24 24">
+  <path d="M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="3.2" fill="currentColor"/>
+</symbol>
+<symbol id="calendar" viewBox="0 0 24 24">
+  <rect x="4" y="5" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M4 10 H20 M8 3 V7 M16 3 V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</symbol>
+<symbol id="chev" viewBox="0 0 24 24">
+  <path d="M9 6 L15 12 L9 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="owl-a" viewBox="0 0 200 220">
+  <path d="M60 40 L73 16 L86 42 Z" fill="#453A94"/>
+  <path d="M114 42 L127 16 L140 40 Z" fill="#453A94"/>
+  <ellipse cx="100" cy="122" rx="66" ry="78" fill="#5B4FB5"/>
+  <ellipse cx="41" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(16 41 138)"/>
+  <ellipse cx="159" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(-16 159 138)"/>
+  <ellipse cx="100" cy="155" rx="40" ry="37" fill="#EDEBFF"/>
+  <circle cx="76" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="124" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="76" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="124" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="79" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="127" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="82.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <circle cx="130.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <path d="M92 112 L108 112 L100 125 Z" fill="#F4976C"/>
+  <ellipse cx="84" cy="199" rx="10" ry="6" fill="#F4976C"/>
+  <ellipse cx="116" cy="199" rx="10" ry="6" fill="#F4976C"/>
+</symbol>
+</defs>
+</svg>
+
+<header class="page-head">
+  <a href="index.html">Voltar à galeria</a>
+  <h1>Evolução (dashboard clínico por filho)</h1>
+  <p class="lead">A tela que justifica o app para o pai e o posiciona como premium: os dados reais das consultas, organizados para leigo, com a palavra da médica no topo. Aqui o app só exibe e devolve a interpretação à Dra. Christiane. Nenhum dado clínico recebe cor, seta, média ou faixa-alvo: a única leitura de valor é o texto dela.</p>
+  <div class="chips">
+    <span class="chip dark">Mobile · 390x844</span>
+    <span class="chip">Filho selecionado: Alice (atropina)</span>
+    <span class="chip anvisa">ANVISA RDC 657/2022 · dados em tinta neutra, zero juízo do app</span>
+  </div>
+</header>
+
+<main class="frames">
+
+  <!-- ===================== FRAME A: dashboard ===================== -->
+  <section class="frame-block">
+    <div class="frame-label">Evolução · dashboard por filho</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+
+        <div class="hdr">
+          <svg class="specks" width="390" height="150" viewBox="0 0 390 150">
+            <circle cx="40" cy="38" r="1.6" fill="#C9C2EE" opacity=".7"/>
+            <circle cx="330" cy="26" r="1.3" fill="#C9C2EE" opacity=".6"/>
+            <circle cx="285" cy="70" r="1.8" fill="#C9C2EE" opacity=".5"/>
+            <circle cx="120" cy="20" r="1.2" fill="#C9C2EE" opacity=".5"/>
+            <circle cx="360" cy="110" r="1.5" fill="#C9C2EE" opacity=".55"/>
+          </svg>
+          <div class="statusbar"><span>20:48</span>
+            <span class="sic">
+              <svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9 h2 v3 h-2 z M5 7 h2 v5 h-2 z M9 4.5 h2 v7.5 h-2 z M13 2 h2 v10 h-2 z" fill="#fff"/></svg>
+              <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 11.2 L11.5 7.8 A4.6 4.6 0 0 0 5.5 7.8 Z M3.3 5.4 A8 8 0 0 1 13.7 5.4 L15.8 3 A11 11 0 0 0 1.2 3 Z" fill="#fff"/></svg>
+              <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".8" y="1" width="21" height="11" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".5"/><rect x="2.4" y="2.6" width="14" height="7.8" rx="1.8" fill="#fff"/><path d="M23.3 4.5 v4 a2.2 2.2 0 0 0 0 -4 z" fill="#fff" fill-opacity=".5"/></svg>
+            </span>
+          </div>
+          <div class="greet">
+            <h2>Evolução</h2>
+            <p>O acompanhamento das consultas, em ordem do tempo</p>
+          </div>
+          <div class="kids">
+            <span class="kid on"><span class="av a">A</span><span>Alice</span></span>
+            <span class="kid"><span class="av p">P</span><span>Pedro</span></span>
+          </div>
+        </div>
+
+        <div class="bod">
+
+          <!-- CARD 1: Avaliação da Dra. (ÚNICA interpretação) -->
+          <div class="dra">
+            <div class="dra-top">
+              <span class="dra-badge"><svg width="20" height="20"><use href="#stetho"/></svg></span>
+              <div>
+                <h3>Avaliação da Dra. Christiane</h3>
+                <p>Consulta de 14 de maio de 2026</p>
+              </div>
+            </div>
+            <p class="dra-text">O acompanhamento da Alice segue dentro do esperado para a idade e o tratamento com atropina está sendo bem tolerado. Mantenham a rotina noturna como combinamos e retornem em agosto para a próxima medida.</p>
+            <div class="dra-sign">
+              <b>Dra. Christiane Sciammarella Wakisaka</b>
+              CRM 75.580 | RQE 41.563 · Oftalmologia Alto de Pinheiros
+            </div>
+          </div>
+
+          <!-- CARD 2: deltas por olho, tinta neutra -->
+          <div class="delta">
+            <div class="delta-head">
+              <h3>Comparativo entre consultas</h3>
+              <span class="toggle"><span class="on">Última consulta</span><span>Desde o início</span></span>
+            </div>
+
+            <div class="measure">Grau (equivalente esférico)</div>
+            <div class="eye">
+              <span class="lab">Olho direito</span>
+              <span class="vals"><b>-2,25 D</b><span class="arrow">&rarr;</span><b>-2,50 D</b></span>
+              <span class="chg">variação -0,25 D</span>
+            </div>
+            <div class="eye">
+              <span class="lab">Olho esquerdo</span>
+              <span class="vals"><b>-2,00 D</b><span class="arrow">&rarr;</span><b>-2,00 D</b></span>
+              <span class="chg">variação 0,00 D</span>
+            </div>
+
+            <div class="measure">Comprimento do olho</div>
+            <div class="eye">
+              <span class="lab">Olho direito</span>
+              <span class="vals"><b>24,10 mm</b><span class="arrow">&rarr;</span><b>24,18 mm</b></span>
+              <span class="chg">variação +0,08 mm</span>
+            </div>
+            <div class="eye">
+              <span class="lab">Olho esquerdo</span>
+              <span class="vals"><b>23,92 mm</b><span class="arrow">&rarr;</span><b>23,97 mm</b></span>
+              <span class="chg">variação +0,05 mm</span>
+            </div>
+          </div>
+
+          <!-- CARD 3: gráfico de linha, toggle Grau|Comprimento -->
+          <div class="chart">
+            <div class="chart-head">
+              <h3>Ao longo das consultas</h3>
+              <span class="toggle"><span class="on">Grau</span><span>Comprimento do olho</span></span>
+            </div>
+            <!-- Gráfico em TINTA NEUTRA: eixos cinza, 2 linhas cinza-azulado, pontos cinza.
+                 SEM cor semafórica, SEM seta, SEM linha de média, SEM faixa-alvo, SEM percentil. -->
+            <svg width="318" height="186" viewBox="0 0 318 186" role="img" aria-label="Grau equivalente esférico de cada olho ao longo de três consultas">
+              <!-- grade horizontal neutra -->
+              <line x1="44" y1="20"  x2="306" y2="20"  stroke="#EAEEF3" stroke-width="1"/>
+              <line x1="44" y1="58"  x2="306" y2="58"  stroke="#EAEEF3" stroke-width="1"/>
+              <line x1="44" y1="96"  x2="306" y2="96"  stroke="#EAEEF3" stroke-width="1"/>
+              <line x1="44" y1="134" x2="306" y2="134" stroke="#EAEEF3" stroke-width="1"/>
+              <!-- eixo Y rótulos (dioptrias, tinta neutra) -->
+              <text x="38" y="24"  text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#94A3B8">-1,5</text>
+              <text x="38" y="62"  text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#94A3B8">-2,0</text>
+              <text x="38" y="100" text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#94A3B8">-2,5</text>
+              <text x="38" y="138" text-anchor="end" font-family="Inter,sans-serif" font-size="10" fill="#94A3B8">-3,0</text>
+              <!-- eixo X -->
+              <line x1="44" y1="150" x2="306" y2="150" stroke="#AEB9C8" stroke-width="1.2"/>
+              <text x="80"  y="168" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#5A6B80">nov/25</text>
+              <text x="175" y="168" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#5A6B80">fev/26</text>
+              <text x="270" y="168" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#5A6B80">mai/26</text>
+
+              <!-- Olho direito: linha cheia, cinza-azulado -->
+              <polyline points="80,72 175,62 270,96" fill="none" stroke="#3E4A5B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="80"  cy="72" r="6" fill="#fff" stroke="#3E4A5B" stroke-width="2.4"/>
+              <circle cx="175" cy="62" r="6" fill="#fff" stroke="#3E4A5B" stroke-width="2.4"/>
+              <circle cx="270" cy="96" r="7" fill="#3E4A5B"/>
+
+              <!-- Olho esquerdo: linha tracejada, cinza médio -->
+              <polyline points="80,58 175,58 270,58" fill="none" stroke="#8A98AB" stroke-width="2.4" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="80"  cy="58" r="6" fill="#fff" stroke="#8A98AB" stroke-width="2.4"/>
+              <circle cx="175" cy="58" r="6" fill="#fff" stroke="#8A98AB" stroke-width="2.4"/>
+              <circle cx="270" cy="58" r="7" fill="#8A98AB"/>
+            </svg>
+            <div class="chart-legend">
+              <span class="cl"><span class="swatch" style="border-top-color:#3E4A5B"></span>Olho direito</span>
+              <span class="cl"><span class="swatch" style="border-top-color:#8A98AB;border-top-style:dashed"></span>Olho esquerdo</span>
+            </div>
+            <p class="chart-note">Cada ponto é uma consulta. Toque em um ponto para ver a data e os valores. Quem avalia o que esses números significam é a Dra. Christiane.</p>
+          </div>
+
+          <!-- CARD 4: educativo -> bottom sheet -->
+          <div class="learn">
+            <span class="li"><svg width="20" height="20"><use href="#eye-q"/></svg></span>
+            <div class="lt">
+              <h4>O que significam essas medidas?</h4>
+              <p>Entenda grau e comprimento do olho em 1 minuto</p>
+            </div>
+            <span class="chev"><svg width="20" height="20"><use href="#chev"/></svg></span>
+          </div>
+
+          <div class="next">
+            <span class="ni"><svg width="16" height="16"><use href="#calendar"/></svg></span>
+            <span>Próxima consulta prevista: agosto de 2026</span>
+          </div>
+
+        </div>
+
+        <div class="tabbar">
+          <span class="tab"><svg width="24" height="24"><use href="#ic-home"/></svg>Hoje</span>
+          <span class="tab active"><svg width="24" height="24"><use href="#ic-chart"/></svg>Evolução</span>
+          <span class="tab"><svg width="24" height="24"><use href="#ic-more" fill="currentColor"/></svg>Mais</span>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Ordem da tela é deliberada: a palavra da médica vem primeiro, os números vêm depois. O app nunca conclui no lugar dela.</li>
+      <li>Dados clínicos em cinza-azulado (--data-ink). Setas usadas são apenas o conector "valor anterior &rarr; valor atual", sem cor e sem sentido de bom/ruim.</li>
+      <li>Gráfico com 2-3 pontos por ano: o ponto grande e tocável é o herói. Sem curva de referência, sem percentil, sem faixa-alvo.</li>
+      <li>Rótulo "Olho direito / Olho esquerdo" em vez de OD/OE no papel principal: linguagem de leigo.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== FRAME B: bottom sheet aberto ===================== -->
+  <section class="frame-block">
+    <div class="frame-label varb">Bottom sheet "O que significam essas medidas?" (aberto)</div>
+    <div class="phone sheet-frame">
+      <div class="screen">
+        <div class="island"></div>
+
+        <!-- fundo esmaecido reaproveitando o dashboard -->
+        <div class="hdr">
+          <div class="statusbar"><span>20:48</span>
+            <span class="sic">
+              <svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9 h2 v3 h-2 z M5 7 h2 v5 h-2 z M9 4.5 h2 v7.5 h-2 z M13 2 h2 v10 h-2 z" fill="#fff"/></svg>
+              <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 11.2 L11.5 7.8 A4.6 4.6 0 0 0 5.5 7.8 Z M3.3 5.4 A8 8 0 0 1 13.7 5.4 L15.8 3 A11 11 0 0 0 1.2 3 Z" fill="#fff"/></svg>
+              <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".8" y="1" width="21" height="11" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".5"/><rect x="2.4" y="2.6" width="14" height="7.8" rx="1.8" fill="#fff"/><path d="M23.3 4.5 v4 a2.2 2.2 0 0 0 0 -4 z" fill="#fff" fill-opacity=".5"/></svg>
+            </span>
+          </div>
+          <div class="greet">
+            <h2>Evolução</h2>
+            <p>O acompanhamento das consultas, em ordem do tempo</p>
+          </div>
+        </div>
+        <div class="bod" style="opacity:.5"></div>
+
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="owl"><svg width="78" height="86" viewBox="0 0 200 220"><use href="#owl-a"/></svg></div>
+          <span class="grab"></span>
+          <h3>O que significam essas medidas?</h3>
+
+          <div class="sheet-q">
+            <span class="qi"><svg width="19" height="19"><use href="#stetho"/></svg></span>
+            <div class="qt">
+              <h4>Grau (equivalente esférico)</h4>
+              <p>É um resumo do grau do olho em uma única medida, em dioptrias (D). É o número que vocês já conhecem da receita dos óculos.</p>
+            </div>
+          </div>
+
+          <div class="sheet-q">
+            <span class="qi"><svg width="19" height="19"><use href="#ruler"/></svg></span>
+            <div class="qt">
+              <h4>Comprimento do olho</h4>
+              <p>É o tamanho do olho em milímetros (mm). Essa é a medida mais precisa do acompanhamento. O olho cresce junto com a criança, e o objetivo do tratamento é que esse crescimento siga o ritmo esperado.</p>
+            </div>
+          </div>
+
+          <div class="sheet-key">
+            Quem avalia se o ritmo está adequado é a <b>Dra. Christiane</b>, na consulta. O app só mostra as medidas; a leitura do que elas significam é sempre dela.
+          </div>
+
+          <button class="sheet-close">Entendi</button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Explicação em linguagem de leigo, em camadas curtas, com a coruja Lumi para o tom acolhedor.</li>
+      <li>O fecho do texto devolve explicitamente a interpretação à médica: reforço editorial da regra ANVISA, não só visual.</li>
+      <li>Nenhum valor clínico aparece no sheet: ele explica conceitos, não classifica resultados.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="page-foot">Lumi · Oftalmologia Alto de Pinheiros · mockup estático de aprovação (Fase 2) · todos os dados são fictícios</footer>
+
+</body>
+</html>

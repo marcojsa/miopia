@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consentimento LGPD · Mockups Lumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --purple-950:#1D1840;--purple-900:#2A2350;--purple-800:#372E7A;--purple:#453A94;
+  --purple-500:#5B4FB5;--purple-400:#6A5FC4;--purple-200:#C9C2EE;--purple-100:#E9E6F8;--purple-50:#F4F2FC;
+  --star:#FFC857;--green:#88B04B;--surface:#F5FAFD;
+  --ink:#334155;--ink-2:#64748B;--ink-3:#94A3B8;--line:#E2E8F0;--coral:#F4976C;
+  --font-d:'Nunito','Segoe UI',system-ui,sans-serif;
+  --font-n:'Inter','Segoe UI',system-ui,sans-serif;
+}
+body{font-family:var(--font-d);background:#ECEBF5;color:var(--ink)}
+.page-head{max-width:1100px;margin:0 auto;padding:40px 32px 8px}
+.page-head a{color:var(--purple);font-weight:800;text-decoration:none;font-size:14px}
+.page-head a:hover{text-decoration:underline}
+.page-head h1{font-size:34px;font-weight:900;color:var(--purple-900);margin-top:10px}
+.page-head p.lead{margin-top:8px;font-size:16px;color:var(--ink-2);max-width:760px;line-height:1.55}
+.chips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.chip{font:700 12px var(--font-d);background:#fff;border:1px solid var(--purple-200);color:var(--purple-800);padding:6px 12px;border-radius:999px}
+.chip.dark{background:var(--purple);color:#fff;border-color:var(--purple)}
+.chip.law{background:#EAF3E0;border-color:#BFD79E;color:#4F6B2C}
+.frames{display:flex;flex-wrap:wrap;gap:56px;justify-content:center;align-items:flex-start;padding:32px 32px 48px}
+.frame-block{display:flex;flex-direction:column;align-items:center;gap:16px;max-width:430px}
+.frame-label{font:900 15px var(--font-d);color:var(--purple-900);background:#fff;border:1px solid var(--purple-200);padding:8px 18px;border-radius:999px}
+.frame-label.varb{background:var(--purple-900);color:#fff;border-color:var(--purple-900)}
+.notes{list-style:none;background:#fff;border-radius:16px;padding:16px 20px;font-size:13px;line-height:1.6;color:var(--ink-2);width:100%;box-shadow:0 4px 14px rgba(42,35,80,.07)}
+.notes li{padding-left:18px;position:relative;margin:4px 0}
+.notes li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;background:var(--purple-400)}
+.page-foot{text-align:center;padding:18px 0 56px;color:var(--ink-3);font-size:13px}
+
+/* ---------- phone frame ---------- */
+.phone{width:390px;height:844px;border-radius:56px;background:#11101F;padding:10px;box-shadow:0 34px 70px rgba(26,21,64,.38);flex:none}
+.screen{width:100%;height:100%;border-radius:46px;overflow:hidden;position:relative;background:var(--surface);display:flex;flex-direction:column}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:18px;background:#11101F;z-index:60}
+.statusbar{height:50px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 4px;font:600 15px var(--font-n);color:var(--purple-900)}
+.statusbar.onlight span{color:var(--purple-900)}
+.statusbar .sic{display:flex;gap:6px;align-items:center}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:rgba(16,16,31,.25);z-index:60}
+
+/* ---------- onboarding header ---------- */
+.ob-top{padding:6px 22px 0;display:flex;align-items:center;gap:12px}
+.ob-back{width:36px;height:36px;border-radius:50%;background:#fff;border:1px solid var(--line);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:none}
+.steps{display:flex;gap:6px;flex:1}
+.steps i{height:5px;border-radius:3px;background:var(--purple-100);flex:1}
+.steps i.done{background:var(--purple-400)}
+.steps i.now{background:var(--purple)}
+
+.ob-head{padding:14px 24px 4px}
+.ob-head .kicker{font:800 11px var(--font-d);letter-spacing:.12em;text-transform:uppercase;color:var(--purple-400)}
+.ob-head h2{font-size:24px;font-weight:900;color:var(--purple-900);margin-top:6px;line-height:1.18}
+.ob-head p{font:500 13.5px var(--font-n);color:var(--ink-2);margin-top:7px;line-height:1.5}
+.child-pill{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:#fff;border:1px solid var(--purple-100);border-radius:999px;padding:6px 14px 6px 6px;font:800 13px var(--font-d);color:var(--purple-900);box-shadow:0 3px 10px rgba(42,35,80,.06)}
+.child-pill .av{width:28px;height:28px;border-radius:50%;background:var(--purple-200);color:var(--purple-900);display:flex;align-items:center;justify-content:center;font:900 12px var(--font-d)}
+.child-pill small{font:500 11px var(--font-n);color:var(--ink-3);display:block}
+
+/* ---------- scroll body ---------- */
+.ob-body{flex:1;overflow:hidden;padding:10px 18px 4px;display:flex;flex-direction:column;gap:11px}
+
+/* camadas expansíveis em linguagem leiga */
+.layer{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 15px;box-shadow:0 3px 10px rgba(42,35,80,.05)}
+.layer-head{display:flex;align-items:center;gap:11px}
+.layer-ic{width:36px;height:36px;border-radius:11px;background:var(--purple-50);color:var(--purple);display:flex;align-items:center;justify-content:center;flex:none}
+.layer-head h3{flex:1;font-size:14px;font-weight:900;color:var(--purple-900)}
+.layer-head .chev{color:var(--ink-3)}
+.layer.open .chev{transform:rotate(90deg)}
+.layer p{font:500 12.5px var(--font-n);color:var(--ink-2);line-height:1.55;margin-top:9px}
+
+/* aceite genérico de termos */
+.consent{display:flex;gap:11px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px 15px}
+.box{width:24px;height:24px;border-radius:7px;border:2px solid var(--purple-200);background:#fff;flex:none;display:flex;align-items:center;justify-content:center}
+.box.checked{background:var(--purple);border-color:var(--purple);color:#fff}
+.consent .ct{font:500 12.5px var(--font-n);color:var(--ink);line-height:1.5}
+.consent .ct a{color:var(--purple);font-weight:700;text-decoration:underline}
+
+/* ACEITE DE DADOS DE SAÚDE — destacado e separado */
+.health{position:relative;background:#fff;border:2px solid var(--green);border-radius:18px;padding:0;box-shadow:0 8px 22px rgba(136,176,75,.18);overflow:hidden}
+.health-tag{background:var(--green);color:#fff;font:900 11px var(--font-d);letter-spacing:.06em;text-transform:uppercase;padding:7px 15px;display:flex;align-items:center;gap:7px}
+.health-in{display:flex;gap:11px;align-items:flex-start;padding:13px 15px 15px}
+.box.green{border-color:var(--green)}
+.box.green.checked{background:var(--green);border-color:var(--green)}
+.health .ht{font:600 13px var(--font-n);color:var(--ink);line-height:1.55}
+.health .ht b{color:var(--purple-900);font-weight:800}
+.health .ht .who{display:block;margin-top:6px;font:500 11.5px var(--font-n);color:var(--ink-2)}
+
+/* ---------- footer / aceite ---------- */
+.ob-foot{padding:12px 20px 26px;background:#fff;border-top:1px solid var(--line)}
+.termver{display:flex;align-items:center;gap:7px;justify-content:center;font:600 11px var(--font-n);color:var(--ink-3);margin-bottom:10px}
+.btn-accept{width:100%;background:var(--purple);color:#fff;border:none;border-radius:16px;padding:16px 0;font:900 16px var(--font-d);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-accept.disabled{background:var(--purple-100);color:var(--purple-200)}
+.foot-hint{text-align:center;font:500 11px var(--font-n);color:var(--ink-3);margin-top:9px;line-height:1.4}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="chev" viewBox="0 0 24 24">
+  <path d="M9 6 L15 12 L9 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="back" viewBox="0 0 24 24">
+  <path d="M15 6 L9 12 L15 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="check" viewBox="0 0 24 24">
+  <path d="M5 12.5 L10 17.5 L19 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="folder" viewBox="0 0 24 24">
+  <path d="M3 7 A2 2 0 0 1 5 5 H9 L11 7 H19 A2 2 0 0 1 21 9 V17 A2 2 0 0 1 19 19 H5 A2 2 0 0 1 3 17 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+</symbol>
+<symbol id="target" viewBox="0 0 24 24">
+  <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+</symbol>
+<symbol id="people" viewBox="0 0 24 24">
+  <circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M3.5 19 A5.5 5.5 0 0 1 14.5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 5.5 A3 3 0 0 1 16 11 M16.5 14 A5.5 5.5 0 0 1 20.5 18.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</symbol>
+<symbol id="scale" viewBox="0 0 24 24">
+  <path d="M12 3 V20 M6 20 H18 M5 7 H19 M5 7 L3 13 H7 Z M19 7 L17 13 H21 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+<symbol id="heart-shield" viewBox="0 0 24 24">
+  <path d="M12 2 L20 5 V11 C20 16.5 16.6 20.4 12 22 C7.4 20.4 4 16.5 4 11 V5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M12 15 C12 15 8.5 12.8 8.5 10.6 A1.9 1.9 0 0 1 12 9.6 A1.9 1.9 0 0 1 15.5 10.6 C15.5 12.8 12 15 12 15 Z" fill="currentColor"/>
+</symbol>
+<symbol id="lock" viewBox="0 0 24 24">
+  <rect x="5" y="10.5" width="14" height="9.5" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M8 10.5 V8 A4 4 0 0 1 16 8 V10.5" fill="none" stroke="currentColor" stroke-width="2"/>
+</symbol>
+<symbol id="owl-a" viewBox="0 0 200 220">
+  <path d="M60 40 L73 16 L86 42 Z" fill="#453A94"/>
+  <path d="M114 42 L127 16 L140 40 Z" fill="#453A94"/>
+  <ellipse cx="100" cy="122" rx="66" ry="78" fill="#5B4FB5"/>
+  <ellipse cx="41" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(16 41 138)"/>
+  <ellipse cx="159" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(-16 159 138)"/>
+  <ellipse cx="100" cy="155" rx="40" ry="37" fill="#EDEBFF"/>
+  <circle cx="76" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="124" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="76" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="124" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="79" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="127" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="82.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <circle cx="130.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <path d="M92 112 L108 112 L100 125 Z" fill="#F4976C"/>
+  <ellipse cx="84" cy="199" rx="10" ry="6" fill="#F4976C"/>
+  <ellipse cx="116" cy="199" rx="10" ry="6" fill="#F4976C"/>
+</symbol>
+</defs>
+</svg>
+
+<header class="page-head">
+  <a href="index.html">Voltar à galeria</a>
+  <h1>Onboarding · Consentimento LGPD</h1>
+  <p class="lead">O passo mais sensível do cadastro do responsável. A LGPD (Art. 14 §1º) exige consentimento específico e em destaque para dados de saúde de criança. A solução: informação em camadas claras, e DOIS aceites separados, com o de dados de saúde visualmente destacado e isolado do aceite genérico de termos. Tom acolhedor e premium, nada de muro de texto jurídico.</p>
+  <div class="chips">
+    <span class="chip dark">Mobile · 390x844</span>
+    <span class="chip">Responsável: Marina · filha: Alice</span>
+    <span class="chip law">LGPD Art. 14 §1º · aceite de saúde específico e destacado</span>
+  </div>
+</header>
+
+<main class="frames">
+
+  <section class="frame-block">
+    <div class="frame-label">Consentimento · camadas + duplo aceite</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar onlight"><span>09:12</span>
+          <span class="sic">
+            <svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9 h2 v3 h-2 z M5 7 h2 v5 h-2 z M9 4.5 h2 v7.5 h-2 z M13 2 h2 v10 h-2 z" fill="#2A2350"/></svg>
+            <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 11.2 L11.5 7.8 A4.6 4.6 0 0 0 5.5 7.8 Z M3.3 5.4 A8 8 0 0 1 13.7 5.4 L15.8 3 A11 11 0 0 0 1.2 3 Z" fill="#2A2350"/></svg>
+            <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".8" y="1" width="21" height="11" rx="3.2" fill="none" stroke="#2A2350" stroke-opacity=".5"/><rect x="2.4" y="2.6" width="14" height="7.8" rx="1.8" fill="#2A2350"/><path d="M23.3 4.5 v4 a2.2 2.2 0 0 0 0 -4 z" fill="#2A2350" fill-opacity=".5"/></svg>
+          </span>
+        </div>
+
+        <div class="ob-top">
+          <span class="ob-back"><svg width="20" height="20"><use href="#back"/></svg></span>
+          <span class="steps">
+            <i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i>
+          </span>
+        </div>
+
+        <div class="ob-head">
+          <span class="kicker">Passo 3 de 5 · Privacidade</span>
+          <h2>Antes de começar, sua autorização</h2>
+          <p>Lumi guarda dados de saúde da sua filha. Por isso pedimos sua autorização de forma clara e separada. Toque em cada item para entender o que registramos.</p>
+          <span class="child-pill"><span class="av">A</span><span>Alice de Oliveira<small>nascida em 12/03/2017</small></span></span>
+        </div>
+
+        <div class="ob-body">
+
+          <!-- camadas expansíveis -->
+          <div class="layer open">
+            <div class="layer-head">
+              <span class="layer-ic"><svg width="19" height="19"><use href="#folder"/></svg></span>
+              <h3>O que registramos</h3>
+              <span class="chev"><svg width="18" height="18"><use href="#chev"/></svg></span>
+            </div>
+            <p>As medidas das consultas (grau e comprimento do olho), o tratamento orientado pela médica e os registros de que vocês fizeram o cuidado da noite. Não pedimos nem guardamos fotos da Alice.</p>
+          </div>
+
+          <div class="layer">
+            <div class="layer-head">
+              <span class="layer-ic"><svg width="19" height="19"><use href="#target"/></svg></span>
+              <h3>Para que usamos</h3>
+              <span class="chev"><svg width="18" height="18"><use href="#chev"/></svg></span>
+            </div>
+          </div>
+
+          <div class="layer">
+            <div class="layer-head">
+              <span class="layer-ic"><svg width="19" height="19"><use href="#people"/></svg></span>
+              <h3>Quem vê esses dados</h3>
+              <span class="chev"><svg width="18" height="18"><use href="#chev"/></svg></span>
+            </div>
+          </div>
+
+          <div class="layer">
+            <div class="layer-head">
+              <span class="layer-ic"><svg width="19" height="19"><use href="#scale"/></svg></span>
+              <h3>Seus direitos</h3>
+              <span class="chev"><svg width="18" height="18"><use href="#chev"/></svg></span>
+            </div>
+          </div>
+
+          <!-- aceite genérico de termos -->
+          <div class="consent">
+            <span class="box checked"><svg width="15" height="15"><use href="#check"/></svg></span>
+            <span class="ct">Li e aceito os <a>Termos de Uso</a> e a <a>Política de Privacidade</a> do Lumi.</span>
+          </div>
+
+          <!-- ACEITE DE SAÚDE: destacado e separado -->
+          <div class="health">
+            <div class="health-tag"><svg width="15" height="15"><use href="#heart-shield"/></svg>Autorização específica · dados de saúde</div>
+            <div class="health-in">
+              <span class="box green checked"><svg width="15" height="15"><use href="#check"/></svg></span>
+              <span class="ht">
+                <b>Autorizo, como responsável legal, o tratamento dos dados de saúde da minha filha Alice</b> para o acompanhamento do controle da miopia, conforme descrito acima.
+                <span class="who">Esta autorização é separada dos termos gerais e pode ser revogada a qualquer momento em Mais &rsaquo; Privacidade.</span>
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="ob-foot">
+          <div class="termver"><svg width="13" height="13" style="color:#94A3B8"><use href="#lock"/></svg>Termo de consentimento · versão 1.2 (junho/2026)</div>
+          <button class="btn-accept"><svg width="18" height="18"><use href="#check"/></svg>Autorizar e continuar</button>
+          <p class="foot-hint">Você pode rever ou retirar esta autorização depois, sem perder o histórico já registrado pela clínica.</p>
+        </div>
+
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Dois aceites fisicamente separados: o checkbox de Termos/Privacidade (roxo) e o de dados de saúde (verde, com borda e tag próprias). É o que materializa o "específico" do Art. 14 §1º.</li>
+      <li>Camadas expansíveis (a primeira aberta como exemplo): linguagem leiga, sem muro de texto, sem esconder informação.</li>
+      <li>Nome da criança e versão do termo aparecem na própria tela: ficam gravados no registro de consentimento.</li>
+      <li>O botão só fica ativo (roxo) com os dois aceites marcados; sem eles, fica desabilitado.</li>
+      <li>Verde aqui é o verde sóbrio de confirmação da paleta (#88B04B), coerente com o botão "Feito" — não é semáforo clínico.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="page-foot">Lumi · Oftalmologia Alto de Pinheiros · mockup estático de aprovação (Fase 2) · todos os dados são fictícios</footer>
+
+</body>
+</html>

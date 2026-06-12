@@ -1,0 +1,82 @@
+/*
+ * PLACEHOLDER ESTRUTURAL — gate de design.
+ *
+ * Os mockups ainda NÃO foram aprovados pelo Marco. Portanto este CSS é o
+ * MÍNIMO de layout para o painel ser usável em testes (espaçamento, tabela
+ * legível, formulário em coluna). SEM identidade visual: sem paleta da marca,
+ * sem tipografia da marca, sem coruja, sem céu noturno. Tudo isso entra depois
+ * que os mockups forem aprovados. NÃO tratar este arquivo como design final.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: #111;
+  background: #fff;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+}
+
+label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+fieldset {
+  margin: 1rem 0;
+}
+
+.error {
+  color: #b00020;
+}
+
+.muted {
+  color: #555;
+}
+
+ul.errors {
+  color: #b00020;
+}
