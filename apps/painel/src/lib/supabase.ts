@@ -4,10 +4,10 @@
 // no bundle pelo Vite). A autorização real é feita pelas policies de RLS no
 // banco — a anon key só permite o que a RLS permite ao usuário autenticado.
 //
-// Tipos do banco NÃO foram gerados (sem Docker). Usamos createClient sem
-// genérico de Database; os tipos de linha vêm de src/types/database.ts à mão.
-// TODO: trocar por createClient<Database>(...) quando rodar `supabase gen types`.
+// Tipado com o Database gerado (`npm run db:types`): o supabase-js infere
+// linha/insert/update de cada .from('tabela') direto do schema real.
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@miopia/shared';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -20,7 +20,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Painel roda em navegador desktop: persistir sessão e renovar token.
     persistSession: true,

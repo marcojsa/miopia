@@ -1,7 +1,10 @@
 // Cliente Supabase do app (auth persistido em AsyncStorage, URL polyfill p/ RN).
+// Tipado com o Database gerado (`npm run db:types`): o supabase-js infere
+// linha/insert/update de cada .from('tabela') direto do schema real.
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@miopia/shared';
 import { AppState } from 'react-native';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -14,7 +17,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
