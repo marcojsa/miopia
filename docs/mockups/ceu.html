@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Céu da criança · Mockups Lumi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --purple-950:#1D1840;--purple-900:#2A2350;--purple-800:#372E7A;--purple:#453A94;
+  --purple-500:#5B4FB5;--purple-400:#6A5FC4;--purple-200:#C9C2EE;--purple-100:#E9E6F8;
+  --star:#FFC857;--silver:#C7CEDB;--green:#88B04B;--surface:#F5FAFD;
+  --ink:#334155;--ink-2:#64748B;--ink-3:#94A3B8;--line:#E2E8F0;--coral:#F4976C;
+  --font-d:'Nunito','Segoe UI',system-ui,sans-serif;
+  --font-n:'Inter','Segoe UI',system-ui,sans-serif;
+}
+body{font-family:var(--font-d);background:#ECEBF5;color:var(--ink)}
+.page-head{max-width:1100px;margin:0 auto;padding:40px 32px 8px}
+.page-head a{color:var(--purple);font-weight:800;text-decoration:none;font-size:14px}
+.page-head a:hover{text-decoration:underline}
+.page-head h1{font-size:34px;font-weight:900;color:var(--purple-900);margin-top:10px}
+.page-head p.lead{margin-top:8px;font-size:16px;color:var(--ink-2);max-width:760px;line-height:1.55}
+.chips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.chip{font:700 12px var(--font-d);background:#fff;border:1px solid var(--purple-200);color:var(--purple-800);padding:6px 12px;border-radius:999px}
+.chip.dark{background:var(--purple);color:#fff;border-color:var(--purple)}
+.frames{display:flex;flex-wrap:wrap;gap:56px;justify-content:center;align-items:flex-start;padding:32px 32px 48px}
+.frame-block{display:flex;flex-direction:column;align-items:center;gap:16px;max-width:430px}
+.frame-label{font:900 15px var(--font-d);color:var(--purple-900);background:#fff;border:1px solid var(--purple-200);padding:8px 18px;border-radius:999px}
+.frame-label.varb{background:var(--purple-900);color:#fff;border-color:var(--purple-900)}
+.notes{list-style:none;background:#fff;border-radius:16px;padding:16px 20px;font-size:13px;line-height:1.6;color:var(--ink-2);width:100%;box-shadow:0 4px 14px rgba(42,35,80,.07)}
+.notes li{padding-left:18px;position:relative;margin:4px 0}
+.notes li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;background:var(--purple-400)}
+.page-foot{text-align:center;padding:18px 0 56px;color:var(--ink-3);font-size:13px}
+
+.phone{width:390px;height:844px;border-radius:56px;background:#11101F;padding:10px;box-shadow:0 34px 70px rgba(26,21,64,.38);flex:none}
+.screen{width:100%;height:100%;border-radius:46px;overflow:hidden;position:relative;display:flex;flex-direction:column;background:linear-gradient(178deg,#171232 0%,#241D4F 46%,#453A94 100%)}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:32px;border-radius:18px;background:#11101F;z-index:60}
+.statusbar{height:50px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 4px;font:600 15px var(--font-n);color:#fff}
+.statusbar .sic{display:flex;gap:6px;align-items:center}
+.homebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:rgba(255,255,255,.35);z-index:60}
+
+.topbar{display:flex;align-items:center;padding:8px 18px 0;position:relative;z-index:5}
+.xclose{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font:800 17px var(--font-n)}
+.ttl{flex:1;text-align:center;margin-right:38px}
+.ttl h2{font-size:21px;font-weight:900;color:#fff}
+.ttl p{font:600 12px var(--font-n);color:var(--purple-200);letter-spacing:.14em;text-transform:uppercase}
+
+.sky{position:relative;margin-top:-6px}
+.legend{display:flex;justify-content:center;gap:16px;padding:0 18px 8px}
+.lg{display:flex;align-items:center;gap:5px;font:600 10.5px var(--font-n);color:var(--purple-200)}
+
+.cards{flex:1;display:flex;flex-direction:column;gap:10px;padding:4px 18px 8px}
+.card{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.17);border-radius:18px;padding:12px 14px;backdrop-filter:blur(2px)}
+.card h3{font-size:14px;font-weight:900;color:#fff}
+.prog-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+.pbar{flex:1;height:9px;border-radius:5px;background:rgba(255,255,255,.16);overflow:hidden}
+.pbar i{display:block;height:100%;width:90%;border-radius:5px;background:linear-gradient(90deg,#E8B14A,var(--star))}
+.pnum{font:700 13px var(--font-n);color:var(--star)}
+.marcos{display:flex;gap:8px}
+.marco{flex:1;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.17);border-radius:16px;padding:10px 8px;text-align:center}
+.marco .mi{height:30px;display:flex;align-items:center;justify-content:center}
+.marco b{display:block;font:900 12.5px var(--font-d);color:#fff;margin-top:3px}
+.marco span{display:block;font:600 10px var(--font-n);color:var(--purple-200);margin-top:2px;line-height:1.35}
+.marco.locked{opacity:.55}
+.shield-row{display:flex;gap:14px;align-items:center;margin-top:8px}
+.slot{width:44px;height:48px;display:flex;align-items:center;justify-content:center}
+.slot.empty{border:1.5px dashed rgba(255,255,255,.35);border-radius:13px}
+.card p.cap{font:500 11.5px var(--font-n);color:var(--purple-200);line-height:1.5;margin-top:8px}
+.shield-row .cap2{flex:1;font:500 11.5px var(--font-n);color:var(--purple-200);line-height:1.5}
+
+.lumi-row{display:flex;align-items:flex-end;gap:10px;padding:0 18px 14px}
+.bubble{flex:1;background:#fff;border-radius:16px 16px 16px 4px;padding:11px 14px;font:700 13.5px var(--font-d);color:var(--purple-900);position:relative;box-shadow:0 8px 20px rgba(13,10,36,.35)}
+.bubble small{display:block;font:500 11px var(--font-n);color:var(--ink-2);margin-top:3px}
+
+/* variation B panel */
+.owlpanel{background:#fff;border-radius:20px;padding:22px 24px;width:100%;box-shadow:0 4px 14px rgba(42,35,80,.07)}
+.owlpanel h3{font-size:17px;font-weight:900;color:var(--purple-900)}
+.owlpanel p{font-size:13px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+.owls{display:flex;gap:18px;margin-top:16px}
+.owlopt{flex:1;border:1.5px solid var(--line);border-radius:16px;padding:14px;text-align:center;background:linear-gradient(178deg,#241D4F,#453A94)}
+.owlopt b{display:block;font:900 13px var(--font-d);color:#fff;margin-top:8px}
+.owlopt span{display:block;font:600 11px var(--font-n);color:var(--purple-200);margin-top:3px;line-height:1.4}
+.owlopt.sel{border-color:var(--star);box-shadow:0 0 0 3px rgba(255,200,87,.25)}
+.tagA{display:inline-block;margin-top:9px;font:800 10.5px var(--font-d);color:var(--purple-900);background:var(--star);border-radius:999px;padding:3px 10px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="star5" viewBox="0 0 20 20">
+  <polygon points="10,0 12.65,6.36 19.51,6.91 14.28,11.39 15.88,18.09 10,14.5 4.12,18.09 5.72,11.39 0.49,6.91 7.35,6.36"/>
+</symbol>
+<symbol id="shield" viewBox="0 0 24 24">
+  <path d="M12 2 L20 5 V11 C20 16.5 16.6 20.4 12 22 C7.4 20.4 4 16.5 4 11 V5 Z"/>
+</symbol>
+<symbol id="cloudy" viewBox="0 0 60 36">
+  <circle cx="18" cy="24" r="10"/><circle cx="32" cy="17" r="13"/><circle cx="45" cy="25" r="9"/>
+  <rect x="14" y="22" width="34" height="11" rx="5.5"/>
+</symbol>
+<symbol id="lock" viewBox="0 0 24 24">
+  <rect x="5" y="10" width="14" height="10" rx="3" fill="currentColor"/>
+  <path d="M8 10 V7.5 A4 4 0 0 1 16 7.5 V10" fill="none" stroke="currentColor" stroke-width="2.2"/>
+</symbol>
+<symbol id="diploma" viewBox="0 0 24 24">
+  <rect x="3" y="5" width="18" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M7 10 H17 M7 13.5 H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="17" cy="16.5" r="3.2" fill="currentColor"/>
+  <path d="M15.6 19 L15 22 L17 20.8 L19 22 L18.4 19" fill="currentColor"/>
+</symbol>
+<symbol id="owl-a" viewBox="0 0 200 220">
+  <path d="M60 40 L73 16 L86 42 Z" fill="#453A94"/>
+  <path d="M114 42 L127 16 L140 40 Z" fill="#453A94"/>
+  <ellipse cx="100" cy="122" rx="66" ry="78" fill="#5B4FB5"/>
+  <ellipse cx="41" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(16 41 138)"/>
+  <ellipse cx="159" cy="138" rx="15" ry="33" fill="#453A94" transform="rotate(-16 159 138)"/>
+  <ellipse cx="100" cy="155" rx="40" ry="37" fill="#EDEBFF"/>
+  <path d="M84 142 Q92 150 100 142" fill="none" stroke="#C9C2EE" stroke-width="3" stroke-linecap="round"/>
+  <path d="M100 142 Q108 150 116 142" fill="none" stroke="#C9C2EE" stroke-width="3" stroke-linecap="round"/>
+  <path d="M92 158 Q100 166 108 158" fill="none" stroke="#C9C2EE" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="76" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="124" cy="92" r="30" fill="#6F63C8"/>
+  <circle cx="76" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="124" cy="92" r="22" fill="#FFFFFF"/>
+  <circle cx="79" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="127" cy="94" r="10" fill="#241D4F"/>
+  <circle cx="82.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <circle cx="130.5" cy="90.5" r="3.5" fill="#FFFFFF"/>
+  <path d="M92 112 L108 112 L100 125 Z" fill="#F4976C"/>
+  <ellipse cx="84" cy="199" rx="10" ry="6" fill="#F4976C"/>
+  <ellipse cx="116" cy="199" rx="10" ry="6" fill="#F4976C"/>
+</symbol>
+<symbol id="owl-b" viewBox="0 0 200 220">
+  <path d="M58 48 L64 22 L84 42 Z" fill="#2A2350"/>
+  <path d="M142 48 L136 22 L116 42 Z" fill="#2A2350"/>
+  <rect x="46" y="38" width="108" height="154" rx="54" fill="#372E7A"/>
+  <ellipse cx="50" cy="132" rx="12" ry="36" fill="#2A2350"/>
+  <ellipse cx="150" cy="132" rx="12" ry="36" fill="#2A2350"/>
+  <circle cx="77" cy="92" r="29" fill="#C9C2EE"/>
+  <circle cx="123" cy="92" r="29" fill="#C9C2EE"/>
+  <circle cx="77" cy="92" r="23" fill="#FFFFFF"/>
+  <circle cx="123" cy="92" r="23" fill="#FFFFFF"/>
+  <circle cx="79" cy="94" r="11.5" fill="#241D4F"/>
+  <circle cx="125" cy="94" r="11.5" fill="#241D4F"/>
+  <circle cx="83" cy="90" r="4" fill="#FFFFFF"/>
+  <circle cx="129" cy="90" r="4" fill="#FFFFFF"/>
+  <path d="M100 118 L109 129 L100 140 L91 129 Z" fill="#F4976C"/>
+  <path d="M112 148 A20 20 0 1 0 112 186 A15 15 0 1 1 112 148 Z" fill="#C9C2EE" opacity=".9"/>
+  <rect x="76" y="188" width="15" height="10" rx="5" fill="#F4976C"/>
+  <rect x="109" y="188" width="15" height="10" rx="5" fill="#F4976C"/>
+</symbol>
+</defs>
+</svg>
+
+<header class="page-head">
+  <a href="index.html">Voltar à galeria</a>
+  <h1>O Céu (modo criança)</h1>
+  <p class="lead">Tela que o responsável mostra para a criança ao fechar a noite. Cada noite de cuidado acende uma estrela; escudos salvam noites perdidas; o modo férias transforma noites em nuvens sem quebrar nada. Nenhum número clínico aparece aqui, nunca: a recompensa é sempre pela adesão, jamais pelo resultado.</p>
+  <div class="chips">
+    <span class="chip dark">Mobile · 390x844 · tela cheia, sem tab bar</span>
+    <span class="chip">Aberta a partir da tab Hoje</span>
+    <span class="chip">Inclui Variação B: estilo da coruja</span>
+  </div>
+</header>
+
+<main class="frames">
+
+  <!-- ===================== FRAME A ===================== -->
+  <section class="frame-block">
+    <div class="frame-label">Céu de junho da Alice · estilo de coruja A</div>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>20:41</span>
+          <span class="sic">
+            <svg width="18" height="12" viewBox="0 0 18 12"><path d="M1 9 h2 v3 h-2 z M5 7 h2 v5 h-2 z M9 4.5 h2 v7.5 h-2 z M13 2 h2 v10 h-2 z" fill="#fff"/></svg>
+            <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 11.2 L11.5 7.8 A4.6 4.6 0 0 0 5.5 7.8 Z M3.3 5.4 A8 8 0 0 1 13.7 5.4 L15.8 3 A11 11 0 0 0 1.2 3 Z" fill="#fff"/></svg>
+            <svg width="26" height="13" viewBox="0 0 26 13"><rect x=".8" y="1" width="21" height="11" rx="3.2" fill="none" stroke="#fff" stroke-opacity=".5"/><rect x="2.4" y="2.6" width="14" height="7.8" rx="1.8" fill="#fff"/><path d="M23.3 4.5 v4 a2.2 2.2 0 0 0 0 -4 z" fill="#fff" fill-opacity=".5"/></svg>
+          </span>
+        </div>
+
+        <div class="topbar">
+          <span class="xclose">×</span>
+          <div class="ttl">
+            <p>Junho</p>
+            <h2>O céu da Alice</h2>
+          </div>
+        </div>
+
+        <div class="sky">
+          <svg width="390" height="318" viewBox="0 0 390 318">
+            <!-- fundo: poeira de estrelas -->
+            <circle cx="30" cy="160" r="1.1" fill="#C9C2EE" opacity=".35"/>
+            <circle cx="140" cy="40" r="1.2" fill="#C9C2EE" opacity=".3"/>
+            <circle cx="210" cy="150" r="1.1" fill="#C9C2EE" opacity=".3"/>
+            <circle cx="350" cy="200" r="1.2" fill="#C9C2EE" opacity=".35"/>
+            <circle cx="300" cy="290" r="1.1" fill="#C9C2EE" opacity=".3"/>
+            <circle cx="100" cy="300" r="1.2" fill="#C9C2EE" opacity=".3"/>
+            <circle cx="370" cy="100" r="1" fill="#C9C2EE" opacity=".3"/>
+            <circle cx="195" cy="265" r="1" fill="#C9C2EE" opacity=".3"/>
+
+            <!-- lua -->
+            <path d="M52 26 A 27 27 0 1 0 52 80 A 21 21 0 1 1 52 26 Z" fill="#F5E9C8" opacity=".92"/>
+
+            <!-- linhas da constelação em progresso -->
+            <polyline points="62,252 112,192 172,232 232,182 292,232 322,152 252,92"
+              fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="1.6" stroke-dasharray="1 5" stroke-linecap="round"/>
+
+            <!-- noites completas: estrelas douradas (dias 1,2,3,6,7,8,9) -->
+            <g>
+              <circle cx="62" cy="252" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="51" y="241" width="22" height="22" fill="#FFC857"/>
+              <text x="62" y="282" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">1</text>
+            </g>
+            <g>
+              <circle cx="112" cy="192" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="101" y="181" width="22" height="22" fill="#FFC857"/>
+              <text x="112" y="222" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">2</text>
+            </g>
+            <g>
+              <circle cx="172" cy="232" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="161" y="221" width="22" height="22" fill="#FFC857"/>
+              <text x="172" y="262" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">3</text>
+            </g>
+            <g>
+              <circle cx="232" cy="182" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="221" y="171" width="22" height="22" fill="#FFC857"/>
+              <text x="232" y="212" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">6</text>
+            </g>
+            <g>
+              <circle cx="292" cy="232" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="281" y="221" width="22" height="22" fill="#FFC857"/>
+              <text x="292" y="262" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">7</text>
+            </g>
+            <g>
+              <circle cx="322" cy="152" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="311" y="141" width="22" height="22" fill="#FFC857"/>
+              <text x="322" y="182" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">8</text>
+            </g>
+            <g>
+              <circle cx="252" cy="92" r="15" fill="#FFC857" opacity=".16"/>
+              <use href="#star5" x="241" y="81" width="22" height="22" fill="#FFC857"/>
+              <text x="252" y="122" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">9</text>
+            </g>
+
+            <!-- noite salva por escudo: estrela prateada (dia 10) -->
+            <g>
+              <circle cx="172" cy="112" r="14" fill="#C7CEDB" opacity=".14"/>
+              <use href="#star5" x="161" y="101" width="22" height="22" fill="#C7CEDB"/>
+              <use href="#shield" x="178" y="96" width="13" height="13" fill="#C7CEDB"/>
+              <text x="172" y="142" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">10</text>
+            </g>
+
+            <!-- hoje: estrela esperando (dia 11) -->
+            <g>
+              <use href="#star5" x="86" y="106" width="26" height="26" fill="none" stroke="#FFC857" stroke-width="1.6" stroke-dasharray="3 3"/>
+              <text x="99" y="150" text-anchor="middle" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" fill="#FFC857">hoje</text>
+            </g>
+
+            <!-- modo férias: nuvens (dias 4 e 5) -->
+            <g opacity=".85">
+              <use href="#cloudy" x="20" y="96" width="54" height="32" fill="#8E9BBF"/>
+              <text x="47" y="142" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">4</text>
+              <use href="#cloudy" x="306" y="48" width="54" height="32" fill="#8E9BBF"/>
+              <text x="333" y="94" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#C9C2EE" opacity=".75">5</text>
+              <text x="195" y="22" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" font-weight="600" fill="#9FA9CC">nuvens = modo férias, nada se perde</text>
+            </g>
+          </svg>
+          <div class="legend">
+            <span class="lg"><svg width="13" height="13" viewBox="0 0 20 20"><use href="#star5" fill="#FFC857"/></svg>noite completa</span>
+            <span class="lg"><svg width="13" height="13" viewBox="0 0 20 20"><use href="#star5" fill="#C7CEDB"/></svg>salva por escudo</span>
+            <span class="lg"><svg width="16" height="10" viewBox="0 0 60 36"><use href="#cloudy" fill="#8E9BBF"/></svg>férias</span>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card">
+            <h3>Constelação da Coruja · 30 noites</h3>
+            <div class="prog-row">
+              <span class="pbar"><i></i></span>
+              <span class="pnum">27 de 30</span>
+            </div>
+          </div>
+
+          <div class="marcos">
+            <div class="marco">
+              <span class="mi"><svg width="26" height="26" viewBox="0 0 20 20"><use href="#star5" fill="#FFC857"/></svg></span>
+              <b>7 noites</b>
+              <span>Primeira constelação. Conquistada!</span>
+            </div>
+            <div class="marco">
+              <span class="mi">
+                <svg width="34" height="26" viewBox="0 0 34 26">
+                  <use href="#star5" x="0" y="8" width="13" height="13" fill="#FFC857"/>
+                  <use href="#star5" x="11" y="0" width="13" height="13" fill="#FFC857"/>
+                  <use href="#star5" x="21" y="10" width="13" height="13" fill="none" stroke="#FFC857" stroke-width="1.5"/>
+                </svg>
+              </span>
+              <b>30 noites</b>
+              <span>Constelação da Coruja. Faltam 3!</span>
+            </div>
+            <div class="marco locked">
+              <span class="mi"><svg width="26" height="26" viewBox="0 0 24 24" style="color:#C9C2EE"><use href="#diploma"/></svg></span>
+              <b>90 noites</b>
+              <span>Céu completo e Diploma do Cuidado</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Escudos da Alice</h3>
+            <div class="shield-row">
+              <span class="slot"><svg width="34" height="38" viewBox="0 0 24 24"><use href="#shield" fill="#FFC857"/></svg></span>
+              <span class="slot"><svg width="34" height="38" viewBox="0 0 24 24"><use href="#shield" fill="#FFC857"/></svg></span>
+              <span class="slot empty"><svg width="30" height="34" viewBox="0 0 24 24"><use href="#shield" fill="none" stroke="#C9C2EE" stroke-width="1.4" stroke-dasharray="2.5 2.5"/></svg></span>
+              <span class="cap2">A cada 7 noites, 1 escudo novo. Uma noite perdida usa 1 escudo e a sequência continua.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="lumi-row">
+          <svg width="104" height="112" viewBox="0 0 200 220"><use href="#owl-a"/></svg>
+          <div class="bubble">
+            Faltam só 3 noites para a Constelação da Coruja!
+            <small>Lumi, a coruja que enxerga no escuro</small>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Tela cheia, sem tab bar: é o momento de mostrar para a criança, com uma porta de saída (X) para o adulto.</li>
+      <li>Amarelo-estrela aparece somente aqui e nas conquistas. Estrela prateada marca a noite salva por escudo, sem tom de fracasso.</li>
+      <li>Zero números clínicos por design: a celebração premia o cuidado, nunca o resultado da consulta.</li>
+      <li>Diploma do Cuidado fica visível e bloqueado desde o início, criando expectativa para os 90 dias.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== VARIATION B: estilo da coruja ===================== -->
+  <section class="frame-block">
+    <div class="frame-label varb">Variação B · estilo da coruja Lumi</div>
+    <div class="owlpanel">
+      <h3>Qual Lumi seguimos?</h3>
+      <p>A coruja aparece no Céu, no Diploma do Cuidado, no onboarding e no ícone do app. Escolher um estilo agora evita redesenho depois. O estilo A é o usado em todos os mockups.</p>
+      <div class="owls">
+        <div class="owlopt sel">
+          <svg width="130" height="143" viewBox="0 0 200 220"><use href="#owl-a"/></svg>
+          <b>Estilo A · redonda e macia</b>
+          <span>Olhos enormes, barriga clara com plumas. Mais infantil e acolhedora.</span>
+          <span class="tagA">usada nos mockups</span>
+        </div>
+        <div class="owlopt">
+          <svg width="130" height="143" viewBox="0 0 200 220"><use href="#owl-b"/></svg>
+          <b>Estilo B · geométrica</b>
+          <span>Corpo de cápsula, lua crescente no peito. Mais gráfica, envelhece melhor com crianças maiores.</span>
+        </div>
+      </div>
+    </div>
+    <ul class="notes">
+      <li>Decisão pedida ao Marco: estilo A ou B (e levar à Dra. Christiane junto com o nome Lumi).</li>
+      <li>O estilo escolhido vira a referência para todas as poses futuras (dormindo, comemorando, com o diploma).</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="page-foot">Lumi · Oftalmologia Alto de Pinheiros · mockup estático de aprovação (Fase 2) · todos os dados são fictícios</footer>
+
+</body>
+</html>

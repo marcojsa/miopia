@@ -156,11 +156,18 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+# MUDANÇA (invite-only): aponta para o painel da clínica local (Vite usa a porta
+# 5173 por padrão) — é o fallback dos links de e-mail quando o redirect_to não
+# é informado. Em produção vira a URL pública do painel.
+site_url = "http://127.0.0.1:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# MUDANÇA (invite-only): o GoTrue só redireciona para URLs desta lista.
+#   * http://127.0.0.1:5173 — painel da clínica em dev (login staff)
+#   * miopia://convite — deep link PLACEHOLDER do aceite de convite no app Expo
+#     (usado pela edge function invite-family; trocar pelo scheme definitivo na Fase 4)
+additional_redirect_urls = ["http://127.0.0.1:5173", "miopia://convite"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -173,13 +180,20 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# MUDANÇA (invite-only, design-backend.md §4): auto-cadastro público DESLIGADO.
+# Toda conta nasce pelo convite da clínica (edge function invite-family →
+# auth.admin.inviteUserByEmail), que continua funcionando com signup desabilitado.
+# Equivale ao "Allow new users to sign up = OFF" do dashboard.
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
-minimum_password_length = 6
+# MUDANÇA: 8 (recomendação Supabase) — o responsável define a senha uma única
+# vez ao aceitar o convite, então o custo de UX é mínimo; dados de saúde de
+# menores pedem o piso mais alto.
+minimum_password_length = 8
 # Passwords that do not meet the following requirements will be rejected as weak. Supported values
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
@@ -218,6 +232,10 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
+# NOTA (invite-only): fica TRUE de propósito. Este campo liga/desliga o
+# PROVIDER de e-mail inteiro (login com senha, magic link/OTP e o aceite do
+# convite) — desligá-lo quebraria o login dos usuários existentes. O bloqueio
+# do auto-cadastro já é feito pelo enable_signup = false global acima.
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
@@ -234,14 +252,18 @@ otp_length = 6
 otp_expiry = 3600
 
 # Use a production-ready SMTP server
+# SMTP custom (Resend, free tier) — OBRIGATÓRIO antes do piloto: o SMTP
+# default do Supabase manda ~3 e-mails/h e mata o fluxo invite-only
+# (plano, Fase 1). Em dev local fica comentado: os e-mails de convite caem
+# no Inbucket (http://127.0.0.1:54324), sem servidor externo.
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
+# host = "smtp.resend.com"
 # port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# user = "resend"
+# pass = "env(RESEND_API_KEY)"
+# admin_email = "contato@clinica-dominio.com.br"  # remetente verificado no Resend
+# sender_name = "Oftalmologia Alto de Pinheiros"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -384,6 +406,15 @@ deno_version = 2
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+# Edge Functions do MVP (design-backend.md §6). verify_jwt = true: o gateway
+# já rejeita chamada sem JWT válido ANTES de invocar a função — as checagens
+# internas (is_staff / dono da conta) continuam dentro de cada função.
+[functions.invite-family]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
 
 [analytics]
 enabled = true

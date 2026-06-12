@@ -12,9 +12,11 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
+    "db:smoke": "node scripts/smoke-rls.mjs",
     "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.0",
     "supabase": "^2.105.0"
   }
 }
