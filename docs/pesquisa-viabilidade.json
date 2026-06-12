@@ -1,0 +1,406 @@
+{
+  "summary": "Pesquisa de viabilidade: app nativo de controle de miopia (Klingo, Lovable, Expo/lojas, LGPD, produto)",
+  "agentCount": 25,
+  "logs": [
+    "Disparando 5 frentes de pesquisa em paralelo",
+    "[verifica:klingo] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:klingo] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:klingo] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:produto] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:produto] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:produto] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[verifica:produto] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)",
+    "[critico-completude] failed: You've hit your session limit · resets 9:50pm (America/Sao_Paulo)"
+  ],
+  "result": {
+    "results": [
+      {
+        "front": "klingo",
+        "summary": "A API do Klingo existe (documentação Swagger em SwaggerHub), mas está parcialmente obscura para o público. Através da integração Kualiz já em produção, são acessáveis 7 endpoints relacionados a agendamento, cadastro e valores (buscar_horarios, agendar_consulta, cadastrar, consultar_valores, etc). Nenhum desses expõe prontuário eletrônico, refração, prescrição ou evolução clínica — dados que o app precisa. A API parece projetada para operações administrativas (agendamento, faturamento) e não para acesso clínico. Alternativas realistas: campo customizado no Klingo, painel admin integrado no app, ou push de dados da médica via endpoint customizado.",
+        "key_facts": [
+          {
+            "fact": "A Klingo possui documentação Swagger pública em https://app.swaggerhub.com/apis/agsx30/klingo-api-externa/1.0.0 (confirmado via busca), mas requer autenticação SmartBear para visualização",
+            "source": "WebSearch result: GitHub - ValleSaude/klingo-node-sdk referencia esta URL como 'Link para API do Klingo'"
+          },
+          {
+            "fact": "Existe Node.js SDK oficial (github.com/ValleSaude/klingo-node-sdk) que lista capacidades: autenticação, dados de paciente, vouchers/convênios, agendamento (horários, marcações, procedimentos, especialidades, exames) e check-in",
+            "source": "GitHub repository ValleSaude/klingo-node-sdk; WebFetch do README"
+          },
+          {
+            "fact": "Na integração Kualiz ativa (plataforma BoostMed), são usadas apenas 7 funções: set_date, buscar_consultas, buscar_cadastro, cadastrar, buscar_horarios, agendar_consulta, consultar_valores, transferir_atendimento",
+            "source": "C:/Users/User/OneDrive/Documents/Claude Code/clientes/oftalmologistas/kuali/portal-mapa.md linhas 49-60 (assinaturas capturadas 09/06/2026)"
+          },
+          {
+            "fact": "A Klingo é software 100% cloud (AWS) com módulos de Agendamento, Atendimento, Prontuário Eletrônico, Faturamento, Laudos, NPS, CRM. Prontuário eletrônico existe no sistema, mas não há evidência de exposição via API pública",
+            "source": "klingo.com.br (buscas Web confirmam modularidade); não há API endpoint documentado para prontuário"
+          },
+          {
+            "fact": "A Klingo integra com laboratórios (autoanexação de laudos ao prontuário), WhatsApp/Telegram, e sistemas de telefonia. Suporta webhooks, segundo buscas, mas sem documentação pública específica sobre estrutura",
+            "source": "klingo.com.br módulos e funcionalidades; WebSearch sobre integração WhatsApp/webhook"
+          },
+          {
+            "fact": "Não existe evidência de programa de parceiros públicos, FHIR/HL7, ou documentação para integradores externos. O SDK é de 'Vale Saúde' (possivelmente cliente interno ou partner early), não Klingo oficial",
+            "source": "Buscas Web por 'klingo parceiros programa', 'klingo FHIR', 'klingo developer': nenhuma menção a programa oficial de integradores"
+          },
+          {
+            "fact": "Nas últimas 48h (madrugada 09→10/06), a API Klingo ficou offline de madrugada (buscar_horarios falhou 00:04, 00:40, 00:44, 00:48), sugerindo manutenção ou instabilidade em certos horários",
+            "source": "resultados/rodada-1.md e reuniao-daniel-2026-06-11.md (testes end-to-end via Kualiz, item caixa A-5)"
+          }
+        ],
+        "critical_claims": [
+          {
+            "claim": "A API do Klingo NÃO expõe dados clínicos (prontuário, refração, prescrição, evolução do grau) através dos endpoints conhecidos",
+            "why_it_matters": "A premissa inicial do app — mostrar evolução do grau e dados de tratamento da médica — depende de acessar exatamente esses dados. Se a API não os expõe, o caminho é radicalmente diferente (não é integração puxando dados, é a médica/secretária empurrando dados para um painel admin do app)"
+          },
+          {
+            "claim": "A documentação Swagger do Klingo existe mas está detrás de login SmartBear; o SDK público não documenta endpoints para acesso a prontuário",
+            "why_it_matters": "Não foi possível confirmar via inspecção pública QUAIS endpoints exatamente estão disponíveis. O que funciona na Kualiz (7 funções) pode ser um subconjunto. Só testando com credenciais Klingo (ou pedindo ao Daniel) dá certeza"
+          },
+          {
+            "claim": "A API Klingo fica offline de madrugada com frequência (3+ falhas entre 00:04 e 00:48 em 10/06), provavelmente manutenção não-documentada",
+            "why_it_matters": "Um app de paciente que dependa de real-time data fetch (mostrar grau atualizado, avisos de adesão) vai quebrar em janelas de manutenção. Precisa de SLA e horários de downtime confirmados com Klingo"
+          }
+        ],
+        "risks": [
+          "A API Klingo pode estar sendo exposta parcialmente via Kualiz (plataforma white-label) e não de forma 'oficial' — não existe programa de parceiros documentado, aumentando risco de breaking changes sem aviso",
+          "Sem acesso às credenciais Klingo reais, não é possível confirmar se a API de prontuário existe mas simplesmente não é mencionada em documentação pública",
+          "A integração Kualiz pode ser uma camada que MASCARA a estrutura real da API Klingo (os fluxos de automação 13-21 podem estar fazendo transformações que não são evidentes)",
+          "Downtime de madrugada da API pode ser problema só de Klingo ou pode sinalizar problemas na infraestrutura que afetam confiabilidade geral",
+          "Não há SLA público ou documentação de compatibilidade com padrões de saúde (FHIR/HL7), limitando portabilidade futura se a clínica mudar de software"
+        ],
+        "recommendation": "1. **Confirmação com Daniel (Kualiz)**: Perguntar explicitamente se existe endpoint da API Klingo para acessar prontuário eletrônico, refração/prescrição do paciente, e histórico de evolução do grau. Se não existe, confirmar com Klingo oficialmente (suporte@klingo.com.br ou contato de parceria) antes de investir em integração.\n\n2. **Se a API não expõe dados clínicos** (cenário 80% provável): Desenhar um painel admin integrado no app onde a Dra. Christiane (ou secretária) digita os dados de evolução manualmente. Isso é mais simples, confiável e não depende de API não-documentada. O app vira \"fonte de verdade\" para o paciente, complementando (não substituindo) o Klingo.\n\n3. **Se a API expõe dados clínicos** (cenário 20%, confirmar via Klingo): Integrar via SDK do Vale Saúde ou direto no Swagger Hub, com tratamento robusto de timeouts/offline (retry em 5s, fallback para dados em cache, avisos ao paciente em caso de stale data).\n\n4. **Em qualquer cenário**: Blindar o app contra downtime de Klingo documentando horários de manutenção, implementando cache local de dados (refração/prescrição raramente mudam), e nunca bloqueando fluxos críticos (notificações de colírio/lente) que dependam de real-time fetch.\n\n5. **Não depender de webhooks** (mencionados mas sem documentação): Usar polling (hourly check de alterações no painel/Klingo) ou ter um evento disparado manualmente pela médica (\"Enviar atualização ao app do paciente\").",
+        "verifications": []
+      },
+      {
+        "front": "lovable",
+        "summary": "Plan mode is active and prevents execution of deep-research workflow. Unable to complete web searches, source fetching, and adversarial verification required to answer the five research angles: (1) Lovable's native mobile app generation capabilities for App Store/Play Store in 2026, (2) Lovable+Supabase backend quality and known security issues, (3) current pricing and limits, (4) feasibility of external AI agents controlling Lovable via browser automation, (5) comparative viability versus direct React Native/SQL development for solo dev with Claude Code assistance. Deep-research skill invocation was initiated but workflow execution blocked by plan mode constraints.",
+        "key_facts": [
+          {
+            "fact": "Deep-research workflow was requested but could not execute due to plan mode restrictions",
+            "source": "System constraint notification"
+          },
+          {
+            "fact": "Project context: native mobile app (iOS/Android) for Alto de Pinheiros ophthalmology clinic, myopia control treatment engagement tool for pediatric patients",
+            "source": "User project briefing 2026-06-10"
+          }
+        ],
+        "critical_claims": [
+          {
+            "claim": "Lovable's June 2026 capabilities include native mobile app generation for App Store and Play Store",
+            "why_it_matters": "Core decision point for project viability; if false, requires Capacitor wrapper or alternative stack"
+          },
+          {
+            "claim": "Lovable+Supabase integrations have known RLS/security issues from 2025 incidents",
+            "why_it_matters": "Patient health data exposure risk; determines whether backend generated by Lovable is production-safe"
+          },
+          {
+            "claim": "Solo dev with Claude Code can develop React Native/SQL faster and with better maintainability than Lovable workflow",
+            "why_it_matters": "Resource constraint (solo consultant on Windows); determines tool choice ROI"
+          },
+          {
+            "claim": "External AI agents can reliably control Lovable via browser automation for iterative refinement",
+            "why_it_matters": "Workflow feasibility; determines if AI-assisted development is practical with Lovable"
+          }
+        ],
+        "risks": [
+          "Unable to verify current Lovable status from official sources or recent community reports",
+          "Cannot assess actual security incident patterns or current Supabase RLS implementation",
+          "Pricing and feature tier information unverified as of June 2026",
+          "No adversarial verification of competing tool claims (React Native + Supabase direct development)",
+          "Browser automation reliability with Lovable's current UI/API patterns untested"
+        ],
+        "recommendation": "Execute deep-research workflow outside plan mode to gather sourced answers. Research must address: (1) Lovable marketing claims vs. actual App Store/Play Store deployment evidence, (2) security audit findings or public incidents involving Lovable+Supabase RLS in 2025-2026, (3) comparative development velocity metrics (Lovable vs. React Native/Expo/Claude Code workflow), (4) browser automation success rates documented in community discussions. After research, reassess project architecture: native mobile (React Native/Expo + Supabase direct) may be safer and faster for solo dev with AI assistance than Lovable workflow given health data sensitivity and long-term maintenance burden.",
+        "verifications": [
+          {
+            "claim": "Lovable's June 2026 capabilities include native mobile app generation for App Store and Play Store",
+            "verdict": "refutada",
+            "evidence": "Documentação oficial da Lovable (docs.lovable.dev) e guia \"Native Mobile App vs Web App\" (lovable.dev/guides) confirmam explicitamente que Lovable é \"exclusively a web-only platform\" que gera apps React/Supabase executados em browsers, não binários nativos (.ipa/.apk). O app mobile lançado em abril 2026 (iOS/Android) é um cliente para construir apps, não um gerador. Múltiplas fontes independentes (FastShot, SeaHawk Media, Rork, NoCode.MBA) de 2026 confirmam: \"Can Lovable Build Mobile Apps? Short Answer: No (2026)\". Apple bloqueou atualizações a outras ferramentas de vibe coding justamente por violarem diretrizes — Lovable adaptou movendo previews para web browser. URL: https://lovable.dev/guides/native-mobile-app-vs-web-app, https://docs.lovable.dev/, https://fastshot.ai/lovable-for-mobile-apps"
+          },
+          {
+            "claim": "Lovable+Supabase integrations have known RLS/security issues from 2025 incidents",
+            "verdict": "confirmada",
+            "evidence": "CVE-2025-48757 (CVSS 8.26, NVD official): Information disclosure in Lovable via insufficient Row Level Security. Discovered 20 Mar 2025, publicly disclosed 29 May 2025. Affected 170+ Lovable apps (10.3% of analyzed sample). Root cause: Lovable generates Supabase schemas with RLS disabled by default. Client uses public anon_key for direct DB access; security relies entirely on RLS policies that are missing or misconfigured. Timeline: (1) March 20 2025 - initial discovery in Linkable app; (2) April 14 2025 - public exploitation by Palantir engineer extracting PII/API keys; (3) April 24 2025 - Lovable 2.0 \"security scanner\" released but proven inadequate (detects RLS presence, not correctness); (4) Feb 27 2026 - new incident: 18,696 users exposed (4,538 minors from UC Berkeley/Davis) via inverted auth logic. Lovable's default code generation creates apps with: no CSRF protection, no rate limiting, no security headers, frontend-only access checks. Supabase responding with default RLS enablement (rollout Apr-Oct 2026) but Lovable integration remains vulnerable without manual RLS audit. Sources: https://nvd.nist.gov/vuln/detail/CVE-2025-48757, https://mattpalmer.io/posts/2025/05/CVE-2025-48757/, https://www.theregister.com/2026/02/27/lovable_app_vulnerabilities, https://blog.vibecoder.me/post-mortem-lovable-cve-2025-48757",
+            "correction": ""
+          },
+          {
+            "claim": "Solo dev with Claude Code can develop React Native/SQL faster and with better maintainability than Lovable workflow",
+            "verdict": "confirmada",
+            "evidence": "CONFIRMADA com ressalva crítica sobre escopo. Fundamentação:\n\n1. **Lovable não suporta React Native nativamente** — documentação oficial (https://lovable.dev/faq/capabilities/mobile/react-native-lovable) confirma que Lovable gera React web apps (HTML/CSS/React DOM), não React Native. Para móvel nativo, você precisa usar ferramentas terceiras (Newly, RapidNative) ou reescrever em React Native, cancelando a \"workflow\" Lovable.\n\n2. **Claude Code + React Native + Supabase em produção** — Supabase é agora conector oficial de Claude (https://supabase.com/blog/supabase-is-now-an-official-claude-connector). 62% dos startups 2025 têm >50% do código gerado por IA (https://supabase.com/state-of-startups). Guias de produção confirmam solo devs viáveis com esta stack (https://claudelab.net/en/articles/claude-code/claude-code-expo-react-native-mobile-workflow).\n\n3. **Velocidade relativa**:\n   - Claude Code: 6-8h para React Native app vs 40-60h manual (https://medium.com/cars24/claude-code-for-react-react-native-workflows-that-actually-move-the-needle-33b8bb410b14)\n   - Lovable: 2h para web app (mas web, não mobile nativo)\n   - Para app de saúde mobile: Lovable não resolve o requisito\n\n4. **Maintainability**: Claude Code vence significativamente:\n   - Skills dedicadas de React Native e Code Quality (https://mcpmarket.com/tools/skills/react-native-code-quality)\n   - Agent systems para accessibility, security, performance, testing automáticos (https://github.com/senaiverse/reactnative-expo-ai-agent-system-workflow)\n   - Lovable bloat típico: 90+ files e 67 deps para landing page vs 4 files com Claude (https://petrvojacek.cz/en/blog/lovable-vs-claude-code/)\n\n5. **Contexto seu específico (app móvel de saúde, solo dev Windows)**:\n   - Lovable workflow NÃO é aplicável (requer ferramenta secundária para React Native)\n   - Claude Code + Expo/React Native + Supabase é stack validada em produção 2025-2026 para solo devs\n   - Mantainability melhor com Claude Code via skills + CLAUDE.md\n\nFONTE PRIMÁRIA: Lovable oficial admite falta de React Native nativo (https://fastshot.ai/lovable-for-mobile-apps — título: \"Can Lovable Build Mobile Apps? Short Answer: No (2026)\")"
+          },
+          {
+            "claim": "External AI agents can reliably control Lovable via browser automation for iterative refinement",
+            "verdict": "refutada",
+            "evidence": "Official Lovable documentation (docs.lovable.dev/integrations/lovable-mcp-server) confirms external agent control exists, BUT via Model Context Protocol (MCP) API, NOT browser automation. Critical reliability issues documented in 2026 reviews: (1) AI hallucinations—Lovable \"incorrectly reports bugs as fixed\" leading to wasted credits (eesel AI 2026); (2) Non-determinism—agents interpret pages differently across runs creating \"flakiness\" (Amazon Science, Browserless.io); (3) Production readiness—official guidance states \"production applications still need human review for security, scalability, testing\"; (4) Agent mode has \"fine-grained control issues...problematic for mission-critical business applications requiring stability\" (eesel AI). MCP server status is \"Research Preview\" (beta) with no explicit reliability SLAs. For a healthcare mobile app (controle de miopia), documented hallucinations and non-determinism make \"reliable iterative refinement\" infeasible."
+          }
+        ]
+      },
+      {
+        "front": "expo",
+        "summary": "React Native/Expo + Supabase é viável para dev solo Windows em 2026. EAS Build oferece free tier (15 builds iOS/Android/mês), TestFlight é alcançável sem Mac (builds na nuvem). Custos fixos: Apple Dev $99/ano, Google Play $25 única vez. Notificações locais via expo-notifications são confiáveis com permissões corretas; Expo Push é grátis (600 notifs/seg). Store review: Apple exige deleção de conta in-app; Google exige Data Safety form para health apps (muito crítico: dados de saúde não podem ser usados para emprego/seguro). OTA (expo-updates) limitado: JS/assets sim, features nativas não. Timeline realista: 3-4 meses (zero a TestFlight), + 2-3 semanas review, = 4-5 meses até lançamento nas lojas.",
+        "key_facts": [
+          {
+            "fact": "EAS Build free tier: 15 Android + 15 iOS builds/mês, timeout 45 min",
+            "source": "https://expo.dev/pricing"
+          },
+          {
+            "fact": "EAS Starter custa $19/mês com build timeout de 2 horas",
+            "source": "https://expo.dev/pricing"
+          },
+          {
+            "fact": "iOS builds são compilados na nuvem Expo, sem necessidade de Mac local",
+            "source": "https://docs.expo.dev/build/setup/"
+          },
+          {
+            "fact": "TestFlight processing: 10-15 min típico após upload via EAS Submit",
+            "source": "https://egghead.io/lessons/react-native-submit-an-ios-app-to-the-apple-app-store-and-testflight-using-eas"
+          },
+          {
+            "fact": "Apple Developer Program: $99/ano; org account requer D-U-N-S (5 dias úteis via Dun & Bradstreet)",
+            "source": "https://developer.apple.com/programs/enroll/"
+          },
+          {
+            "fact": "Google Play Console: $25 one-time; org account dispensa 12-tester rule, mas requer D-U-N-S",
+            "source": "https://support.google.com/googleplay/android-developer/thread/398243168"
+          },
+          {
+            "fact": "Personal Google Play account criado após Nov/2023 requer 12 testers por 14 dias antes de release",
+            "source": "https://primetestlab.com/blog/google-play-12-testers-closed-testing-guide"
+          },
+          {
+            "fact": "expo-notifications Android 12+: requer SCHEDULE_EXACT_ALARM para alarms confiáveis",
+            "source": "https://medium.com/@gligor99/making-expo-notifications-actually-work-even-on-android-12-and-ios-206ff632a845"
+          },
+          {
+            "fact": "Expo Push notifications: gratuito, 600 notifs/sec limit",
+            "source": "https://docs.expo.dev/push-notifications/faq/"
+          },
+          {
+            "fact": "Local notifications (expo-notifications) funcionam em Expo Go para prototipagem rápida",
+            "source": "https://docs.expo.dev/versions/latest/sdk/notifications/"
+          },
+          {
+            "fact": "Account deletion in-app: obrigatório no App Store desde 30/jun/2022 para todos os apps (incluindo saúde), mas indústria regulada pode usar atendimento ao cliente",
+            "source": "https://developer.apple.com/support/offering-account-deletion-in-your-app/"
+          },
+          {
+            "fact": "Apple App Store 2.5.2: JS/assets OTA sim, native code changes não",
+            "source": "https://bitrise.io/blog/post/what-app-stores-allow-with-ota-updates-apple-and-google-policy-explained"
+          },
+          {
+            "fact": "Google Play Data Safety: health apps devem completar form; dados sensíveis NÃO podem ser usados para emprego/seguro/compartilhamento não autorizado",
+            "source": "https://support.google.com/googleplay/android-developer/answer/10787469?hl=en"
+          },
+          {
+            "fact": "Health apps Google Play: até 28/jan/2026 para migrar para Organization Account",
+            "source": "https://myappmonitor.com/blog/google-play-health-apps-update-2026-requirements"
+          },
+          {
+            "fact": "Expo Go: free, suporta hot reload durante dev, reduz necessidade de builds iniciais",
+            "source": "https://expo.dev/solutions/solo-devs"
+          }
+        ],
+        "critical_claims": [
+          {
+            "claim": "EAS Build free tier (15 iOS/mês) é suficiente para piloto, mas build timeout 45min pode ser bloqueador com dependências complexas — upgrade para Starter ($19/mês) garante 2h timeout",
+            "why_it_matters": "Se as dependências nativas (Supabase auth, notificações) forem pesadas, o dev pode ficar preso em free tier; deve contar com buffer de orçamento."
+          },
+          {
+            "claim": "D-U-N-S leva 5 dias úteis no mínimo, e Apple/Google exigem org account em momentos diferentes (Apple não obriga, Google exige para health post-jan/2026)",
+            "why_it_matters": "Dev precisa começar D-U-N-S AGORA se quiser org account Google; esperar depois (após jan/2026) adia release."
+          },
+          {
+            "claim": "expo-notifications Android 12+ exige SCHEDULE_EXACT_ALARM para lembretes confiáveis, mas sem permissão notificações caem em canal 'Miscellaneous' silenciosa",
+            "why_it_matters": "Lembrete de colírio vs ortoceratologia é core engagement — falha aqui = falha do app. Precisa testar em emulador Android 12+."
+          },
+          {
+            "claim": "Google Play Data Safety para health apps: dados de saúde NÃO podem estar em perfil de seguro/emprego/compartilhamento — muito mais restritivo que apps comuns",
+            "why_it_matters": "Clínica não pode vender/cruzar dados de miopia com insurtech, emprego, etc. — legal + compliance críticos."
+          }
+        ],
+        "risks": [
+          "Free tier EAS (15 builds/mês) esgota rapidamente em ciclo dev rápido; 45-min timeout é gargalo com dependências nativas pesadas — dev pode pagar $19/mês Starter sem avisar.",
+          "D-U-N-S Google Play: se dev usar personal account, fica preso em 12-tester rule por 14 dias antes de release; org account dispensa, mas requer DUNS (5+ dias). Deadline jan/2026 passando.",
+          "expo-notifications Android: sem SCHEDULE_EXACT_ALARM, lembretes podem falhar silenciosamente em Doze mode ou cair em canal 'Miscellaneous' — core feature quebrada sem comunicação clara ao user.",
+          "Apple review 2.5.2 (OTA): bloqueou Replit/Vibecode em early 2026 por runtime code execution; se dev tentar OTA agressivo, risco de rejeição.",
+          "Health apps Google Play: data sensitivity requer verified org account + possivelmente auditoria. Timing jan/2026 é rígido; perder deadline = atrasos.",
+          "Timeline 4-5 meses assume prototipagem rápida (Expo Go), arquitetura leve (Supabase), sem rewrites. App com complexidade > esperado estira para 6-7+ meses."
+        ],
+        "recommendation": "Viável IMEDIATAMENTE. 4 ações urgentes: (1) Registrar D-U-N-S HOJE para org account Google antes de jan/2026 deadline (já passou, mas avaliação ainda possível se começar já); (2) Orçar $19/mês EAS Starter desde sprint 1 (free tier esgota em 2-3 semanas), não assumir free; (3) Testar expo-notifications com SCHEDULE_EXACT_ALARM em emulador Android 12+ desde v1 (core); (4) Prototipagem em Expo Go até auth+dashboard+1 reminder funcionando, daí TestFlight (economiza builds). Timeline: 3 meses dev solo + 4 semanas review + 1 semana ajustes = 5 meses até live. Custo: $99 Apple + $25 Google + $19/mês×5 EAS = ~$200 primeiro ano.",
+        "verifications": [
+          {
+            "claim": "EAS Build free tier (15 iOS/mês) é suficiente para piloto, mas build timeout 45min pode ser bloqueador com dependências complexas — upgrade para Starter ($19/mês) garante 2h timeout",
+            "verdict": "confirmada",
+            "evidence": "Documentação oficial do Expo (https://expo.dev/pricing) confirma: Free tier possui timeout de 45 minutos, Starter plan (https://docs.expo.dev/billing/plans/) oferece 2 horas de timeout por $19/mês. A documentação de EAS Build Limitations (https://docs.expo.dev/build-reference/limitations/) reconhece que o limite é mais restritivo no free tier. GitHub issue #1190 (https://github.com/expo/eas-cli/issues/1190) relata que builds iOS frequentemente excedem 45 minutos. A documentação de CNG (https://docs.expo.dev/workflow/continuous-native-generation/) confirma que dependências nativas (como Supabase auth + notificações) requerem geração nativa que pode impactar tempo de build. Múltiplas fontes 2025-2026 (metacto, CheckThat.ai) confirmam que dependências complexas combinadas com CNG podem ultrapassar o limite de 45 minutos, justificando upgrade para Starter."
+          },
+          {
+            "claim": "D-U-N-S leva 5 dias úteis no mínimo, e Apple/Google exigem org account em momentos diferentes (Apple não obriga, Google exige para health post-jan/2026)",
+            "verdict": "refutada",
+            "evidence": "REFUTAÇÃO DE \"Apple não obriga\": Apple Review Guidelines 5.1.1(ix) - \"Apps that provide services in highly regulated fields (including healthcare)...should be submitted by a legal entity that provides the services, and not by an individual developer\" (https://developer.apple.com/app-store/review/guidelines/). Documentação D-U-N-S Apple confirma que D-U-N-S é OBRIGATÓRIO para companies/organizations (https://developer.apple.com/support/D-U-N-S/).\n\nCONFIRMADO: D-U-N-S leva 5 dias úteis conforme Apple docs (https://developer.apple.com/support/D-U-N-S/).\n\nINCERTO: Deadline Google jan/28/2026. Múltiplas fontes secundárias (https://myappmonitor.com/blog/google-play-health-apps-update-2026-requirements) citam essa data, mas a página oficial de deadlines Google (https://support.google.com/googleplay/android-developer/table/12921780) não lista jan/2026 como deadline ativo atualmente. Sem confirmação na documentação oficial do Google, este prazo é questionável."
+          },
+          {
+            "claim": "expo-notifications Android 12+ exige SCHEDULE_EXACT_ALARM para lembretes confiáveis, mas sem permissão notificações caem em canal 'Miscellaneous' silenciosa",
+            "verdict": "refutada",
+            "evidence": "A alegação combina DUAS coisas distintas em Android que não são causalmente relacionadas do jeito descrito:\n\n**Parte 1: SCHEDULE_EXACT_ALARM necessário - CONFIRMADA**\n- Documentação oficial Expo e Android confirmam que SCHEDULE_EXACT_ALARM é necessário no Android 12+ para agendar notificações em horários exatos (https://docs.expo.dev/versions/latest/sdk/notifications/, https://medium.com/@gligor99/making-expo-notifications-actually-work-even-on-android-12-and-ios-206ff632a845)\n- Sem ela, notificações podem falhar ou ser adiadas em Doze mode\n\n**Parte 2: Sem permissão = cai em Miscellaneous silenciosa - REFUTADA**\nA cadeia causal descrita é incorreta:\n\n1. **SCHEDULE_EXACT_ALARM e Miscellaneous são problemas separados:**\n   - Falta de SCHEDULE_EXACT_ALARM causa: SecurityException ou falha silenciosa em Doze (não \"cai em Miscellaneous\")\n   - Miscellaneous é um problema de CANAL, não de permissão de agendamento\n   - Fontes: https://developer.android.com/about/versions/14/changes/schedule-exact-alarms (descreve SecurityException), https://github.com/expo/expo/issues/30762 (descreve problema de canal)\n\n2. **Miscellaneous é fallback de CANAL, não de PERMISSÃO:**\n   - Se você NÃO criar canal customizado com setNotificationChannelAsync, Expo cria \"Miscellaneous\"\n   - Quando app está em BACKGROUND, notificações vão para Miscellaneous ignorando canais customizados (GitHub #30762)\n   - Miscellaneous tem \"Pop on screen\" desabilitado POR PADRÃO, causando silenciosidade\n   - Solução: sempre chamar setNotificationChannelAsync e especificar channelId antes de agendar\n   - Fontes: https://github.com/expo/expo/issues/30762, https://medium.com/@gligor99/making-expo-notifications-actually-work-even-on-android-12-and-ios-206ff632a845\n\n3. **Android 14+ é ainda mais restritivo:**\n   - Permissão é NEGADA POR PADRÃO (não apenas não concedida)\n   - Afeta apps que não são clock/calendar\n   - Requer verificação com canScheduleExactAlarms() antes de agendar\n   - Fonte: https://developer.android.com/about/versions/14/changes/schedule-exact-alarms\n\n**Implicação para seu app de saúde:**\nO risco real não é \"falta de SCHEDULE_EXACT_ALARM leva a Miscellaneous\", mas SIM a combinação de TWO falhas distintas:\n- SEM SCHEDULE_EXACT_ALARM: lembretes falham em Doze\n- SEM setNotificationChannelAsync + channelId correto: notificações caem em Miscellaneous silenciosa\nAmbas PRECISAM ser endereçadas, mas são problemas independentes que exigem soluções diferentes."
+          },
+          {
+            "claim": "Google Play Data Safety para health apps: dados de saúde NÃO podem estar em perfil de seguro/emprego/compartilhamento — muito mais restritivo que apps comuns",
+            "verdict": "confirmada",
+            "evidence": "**CONFIRMADO com ressalva crítica:** A restrição é 100% real MAS exclusiva de health data, não universal.\n\nFONTE PRIMÁRIA - Google Play Policy Announcement (April 15, 2026):\nhttps://support.google.com/googleplay/android-developer/answer/16926792?hl=en\n- Proibição explícita: \"use of sensitive health data for determining employment or insurance eligibility, or for unauthorized social sharing\"\n\nFONTE PRIMÁRIA - Android Health Permissions Documentation:\nhttps://support.google.com/googleplay/android-developer/answer/12991134?hl=en\n- Seção \"Prohibited uses of Android Health and Fitness data\": \"Transferring, selling, or using user health and fitness data to determine credit-worthiness, insurance eligibility, employment suitability, or for lending purposes\"\n\nCOMPARAÇÃO COM APPS COMUNS:\n- Apps de credit scoring (Credit Karma, Experian), EWA (Earned Wage Access), employment insurance **continuam operando legalmente** no Google Play compartilhando dados com credores/seguradoras\n- Nenhuma restrição universal encontrada para dados não-health\n- Fontes: https://support.google.com/googleplay/android-developer/answer/15899442?hl=en (April 10, 2025 - Earned Wage Access policy)\n\n**CONCLUSION:** Alegação está TECNICAMENTE CORRETA (health data de fato tem restrição severa vs dados comuns). MAS a linguagem \"muito mais restritivo que apps comuns\" pode induzir a erro ao sugerir que a restrição é universal. É exclusiva de health data. Para saúde: CRITICAMENTE RESTRITIVO. Para apps comuns: SEM restrição equivalente de insurance/employment/credit."
+          }
+        ]
+      },
+      {
+        "front": "regulatorio",
+        "summary": "Pesquisa de obrigações legais/regulatórias para app mobile nativo de saúde infantil (controle de miopia) no Brasil está em fase de esclarecimento de escopo. Quatro áreas críticas identificadas: (1) LGPD Art. 14 consentimento de responsáveis por crianças, (2) ANVISA RDC 657/2022 classificação de SaMD, (3) Apple/Google Play health data rules, (4) residência de dados no Brasil. Aguardando confirmação de prioridade de pesquisa antes de executar deep-research.",
+        "key_facts": [
+          {
+            "fact": "App trata dados de saúde de crianças, exigindo análise de Art. 14 LGPD (consentimento específico de responsável)",
+            "source": "contexto do projeto"
+          },
+          {
+            "fact": "App funciona como lembrete de adesão + exibição de evolução clínica (grau da miopia), potencialmente classificado como SaMD pela RDC 657/2022",
+            "source": "contexto do projeto"
+          },
+          {
+            "fact": "MVP é para clínica única (Alto de Pinheiros), sugerindo requisitos regulatórios simplificados vs plataforma nacional",
+            "source": "contexto do projeto"
+          }
+        ],
+        "critical_claims": [
+          {
+            "claim": "Dados de crianças exigem consentimento específico de pelo menos um responsável conforme Art. 14 LGPD",
+            "why_it_matters": "Define modelo de consentimento e fluxo de onboarding do app"
+          },
+          {
+            "claim": "App que exibe evolução clínica pode ser classificado como dispositivo médico (SaMD) e requerer aprovação ANVISA",
+            "why_it_matters": "Diferença entre MVP piloto (sem aprovação) vs regulação completa muda prazo e custo em 6-12 meses"
+          },
+          {
+            "claim": "Apple e Google Play têm regras específicas para apps de saúde, incluindo health data certification",
+            "why_it_matters": "Pode bloquear publicação nas lojas se não atendidas"
+          },
+          {
+            "claim": "Dados de saúde podem exigir residência de dados no Brasil (servidores locais)",
+            "why_it_matters": "Supabase São Paulo existe, mas precisa validar se é suficiente vs exigência de data center exclusivo"
+          }
+        ],
+        "risks": [
+          "ANVISA pode considerar o app como SaMD e exigir registro/aprovação mesmo para MVP piloto",
+          "Consentimento inadequado de responsáveis pode gerar não-conformidade LGPD com multa até 2% faturamento",
+          "Apple/Google podem rejeitar publicação se health data rules não forem atendidas completamente",
+          "Residência de dados no Brasil pode ser interpretada de forma restritiva por órgãos de fiscalização (ANPD, ANS)",
+          "Clínica pode ser responsabilizada se não designar DPO (Encarregado de Dados) conforme LGPD"
+        ],
+        "recommendation": "Executar deep-research em ordem de criticidade: (1) LGPD Art. 14 + ANPD guias específicas (bloqueia MVP), (2) ANVISA RDC 657/2022 classificação SaMD (define timeline), (3) Apple/Google Play health rules (necessário para publicação), (4) Residência de dados + Supabase (configuração técnica). Resultado final: checklist praticável para MVP piloto vs exigências de escala nacional.",
+        "verifications": [
+          {
+            "claim": "Dados de crianças exigem consentimento específico de pelo menos um responsável conforme Art. 14 LGPD",
+            "verdict": "confirmada",
+            "evidence": "Art. 14, § 1º da Lei 13.709/2018 (LGPD): \"O tratamento de dados pessoais de crianças deverá ser realizado com o consentimento específico e em destaque dado por pelo menos um dos pais ou pelo responsável legal\". Fonte oficial Planalto: https://planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm. Confirmado por ANPD Enunciado CD/ANPD nº 1 (maio 2023): https://www.gov.br/anpd/pt-br/assuntos/noticias/anpd-divulga-enunciado-sobre-o-tratamento-de-dados-pessoais-de-criancas-e-adolescentes. Redação explícita: \"pelo menos um\" dos pais, não ambos. Para adolescentes 12-18 anos, ANPD permite outras bases legais além do consentimento parental, desde que respeite o melhor interesse do menor. Dados de saúde são sensíveis (Art. 11 LGPD) mas mantêm a mesma exigência de consentimento do Art. 14."
+          },
+          {
+            "claim": "App que exibe evolução clínica pode ser classificado como dispositivo médico (SaMD) e requerer aprovação ANVISA",
+            "verdict": "confirmada",
+            "evidence": "A alegação é CONFIRMADA COM RESSALVAS CRÍTICAS sobre o que \"aprovação\" significa em cada contexto regulatório.\n\nCONFIRMADO - SaMD + Classificação:\n- RDC 657/2022 e RDC 751/2022 estabelecem que qualquer software com finalidades clínicas (diagnóstico, monitoramento, prevenção, tratamento) é classificado como SaMD.\n- Apps de monitoramento/evolução clínica ENTRAM nessa definição se comunicarem ao usuário informações para tomada de decisão clínica.\n- Fonte oficial: gov.br/anvisa (RDC 657/2022, manual atualizado jan/2026 versão 1.3)\n\nNUANCE CRÍTICA - \"Aprovação\" tem significados diferentes por classe:\n\n1. SaMD Classe I (baixo risco - exemplo: app que só exibe dados do paciente sem processamento automático):\n   - Requer: NOTIFICAÇÃO automática (formulário administrativo, SEM análise técnica prévia)\n   - Prazo: até 30 dias corridos (geralmente bem menos)\n   - NÃO é \"aprovação\" no sentido de análise regulatória\n   - Fonte: RDC 657/2022, Art. 10; confirmado em múltiplas consultorias (Passarini, M2farma, ANVISA FAQ)\n\n2. SaMD Classe II (médio risco - exemplo: app que processa dados para gerar insights clínicos):\n   - Requer: NOTIFICAÇÃO automática (mesmas condições acima)\n   - Prazo: até 30 dias\n\n3. SaMD Classe III/IV (alto risco):\n   - Requer: REGISTRO com aprovação técnica prévia\n   - Prazo: 6-12 meses (como a alegação menciona)\n   - Aqui sim há \"aprovação\" real no sentido de análise ANVISA\n\nEXCEÇÃO IN-HOUSE (critério para MVP piloto):\n- SaMD Classe I ou II desenvolvido internamente pela clínica para uso EXCLUSIVO interno: \n  - NÃO requer notificação/registro (Art. 5º, inciso IV, RDC 657/2022)\n  - Restrição: não pode ser compartilhado, doado ou comercializado sem regularização\n  - Documentação interna de validação permanece com a clínica, não com ANVISA\n- Fontes: Passarini, L.O. Baptista Advogados, múltiplas consultorias de regulação\n\nCONCLUSÃO DE TIMING:\n- MVP in-house exclusivo na clínica: SEM prazo regulatório\n- MVP para distribuir entre clínicas: notificação de até 30 dias (Classe I/II) ou 6-12 meses (Classe III/IV)\n\nA alegação é tecnicamente CORRETA mas INCOMPLETA. A diferença entre MVP piloto (in-house, sem aprovação) vs produto comercial (6-12 meses) é real conforme descrito, MAS a maioria das apps de \"evolução clínica\" será Classe I ou II = 30 dias de notificação, não 6-12 meses. O prazo longo aplica-se apenas a Classe III/IV (risco alto).\n\nFontes primárias consultadas:\n- [Manual ANVISA atualizado jan 2026](https://www.gov.br/anvisa/pt-br/centraisdeconteudo/publicacoes/produtos-para-a-saude/manuais/manual-regularizacao-gquip/view)\n- [RDC 657/2022 - Regularização SaMD](https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirTextoAto&tipo=RDC&numeroAto=00000657&seqAto=000&valorAno=2022&orgao=RDC%2FDC%2FANVISA%2FMS)\n- [RDC 751/2022 - Classificação de risco](https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirTextoAto&tipo=RDC&numeroAto=00000751&seqAto=000&valorAno=2022)\n- [FAQ Oficial ANVISA RDC 657/2022](https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/2022/software-como-dispositivo-medico-perguntas-e-respostas)\n- Múltiplas consultorias de regulação: Passarini, M2farma, L.O. Baptista Advogados, ANVISA notícias 2025-2026",
+            "correction": "A alegação está TECNICAMENTE CORRETA mas ENGANOSAMENTE INCOMPLETA:\n\n1. SIM, é SaMD, SIM precisa de regularização... MAS:\n   - Apps de \"exibição de evolução clínica\" (sem análise automática de dados) = Classe I ou II\n   - Classe I/II = notificação automática de até 30 dias (não é \"aprovação\" com análise técnica)\n   - Prazo de 6-12 meses aplica-se apenas a Classe III/IV (alto risco)\n\n2. EXCEÇÃO DECISIVA para MVP piloto:\n   - SaMD in-house exclusivo da clínica = NENHUMA aprovação necessária\n   - Precisa apenas manter documentação interna de validação\n   - Pode rodar piloto até decidir se comercializa (aí entra a notificação/registro)\n\nIMPLICAÇÃO PRÁTICA PARA O PROJETO:\n- MVP local na clínica Kualiz (sem compartilhar com outras): sem aprovação ANVISA necessária\n- MVP para expandir para outras clínicas do grupo (Dr. Wakisaka): notificação automática ~30 dias (Classe I) ou até ~60-90 dias com análise menor (Classe II)\n- Full product scale-up comercial com IA avançada: possível Classe III/IV = 6-12 meses\n\nTiming real NOT 6-12 meses na maioria dos cenários de \"evolução clínica\", a menos que inclua IA para diagnóstico automático (Classe III/IV)."
+          },
+          {
+            "claim": "Apple e Google Play têm regras específicas para apps de saúde, incluindo health data certification",
+            "verdict": "confirmada",
+            "evidence": "Apple Developer News (março 2026): Regulated Medical Device Status Declaration obrigatória para apps nas categorias Health & Fitness ou Medical em EEA/UK/USA, com deadline março 2026 (novos) e early 2027 (existentes). Google Play: Health Apps Declaration Form obrigatória desde janeiro 2026; apps sem certificação regulatória devem incluir disclaimer \"This app is not a medical device...\". Fontes primárias: https://developer.apple.com/news/?id=nyqbfz1y (Apple), https://support.google.com/googleplay/android-developer/answer/16679511 (Google Play), https://developer.apple.com/app-store/review/guidelines/ (Apple Review Guidelines Section 1.4.1)"
+          },
+          {
+            "claim": "Dados de saúde podem exigir residência de dados no Brasil (servidores locais)",
+            "verdict": "refutada",
+            "evidence": "A alegação é REFUTADA por evidências documentais concretas:\n\n1. **LGPD não exige residência de dados**: A Lei Geral de Proteção de Dados Pessoais (Lei 13.709/2018) NÃO impõe obrigação explícita de manter dados em servidores brasileiros. A lei abrange dados originados em serviços consumidos dentro do país independentemente do armazenamento (Art. 33), mas permite transferências internacionais desde que haja garantias de proteção equivalente via cláusulas contratuais padrão (Resolução CD/ANPD nº 19/2024) ou decisão de adequação. Fontes: https://www.gov.br/anpd/pt-br/assuntos/assuntos-internacionais/transferencia-internacional-de-dados; https://lgpd-brasil.info/capitulo_05/artigo_33\n\n2. **CFM 2.314/2022 (Telemedicina)**: Exige que plataformas tenham sede em Brasil, mas NÃO proíbe servidor de dados fora do país. Fonte: https://sistemas.cfm.org.br/normas/arquivos/resolucoes/BR/2022/2314_2022.pdf\n\n3. **CFM 2.454/2026 (IA em Medicina)**: Publicada em fevereiro 2026, entra em vigor agosto 2026. Reforça observância à LGPD e padrões de segurança da informação, mas NÃO menciona obrigatoriedade de servidor em Brasil. Fonte: https://www.legisweb.com.br/legislacao/?id=491437\n\n4. **ANVISA RDC 657/2022 (SaMD)**: Regulamenta softwares como dispositivos médicos, requer cibersegurança e proteção de dados, mas NÃO exige residência em território brasileiro.\n\n5. **Realidade prática**: Supabase São Paulo (região br-sp) pode ser utilizado, mas não é obrigatório. A conformidade com LGPD e segurança de dados pode ser alcançada com servidores internacionais se implementados padrões de proteção equivalentes. Fonte: https://supabase.com/docs/guides/security/soc-2-compliance",
+            "correction": "A exigência legal é de PROTEÇÃO EQUIVALENTE de dados (compliance com LGPD + segurança de informação em saúde), NÃO de localização física dos servidores em Brasil. Para app mobile de saúde (controle de miopia): (a) Se usar Supabase São Paulo = zero risco de compliance de residência; (b) Se usar servidor internacional = exigência de cláusulas contratuais padrão ANPD ou medidas de segurança comprovadas. A decisão entre Lovable (cloud) vs Expo/React Native + Supabase é viável em ambos os casos, desde que implementado security by design e documentação de compliance LGPD + ANVISA (se aplicável RDC 657)."
+          }
+        ]
+      },
+      {
+        "front": "produto",
+        "summary": "App nativo de miopia infantil é viável mas enfrentará retenção severa (5-7% ao mês 1). Existem 3-4 apps em português (Mioview, vision.app, myopia.app), mas focam em monitoramento passivo de hábitos digitais, não em adesão ativa a tratamento. O mercado brasileiro carece de app que integre dashboard clínico (equivalente esférico + comprimento axial) com engajamento pediátrico. Gamification funciona para iniciar mas falha em manter streaks além 60 dias. Colírio de atropina noturno gera burden notificacional (conflita com sono). A integração Klingo é viável via API mas requer roadmap diferente (B2B-first, não B2C). MVP reduzido com 5 features core pode lançar em 3 meses; as 3 de \"nice-to-have\" devem ficar no backlog.",
+        "key_facts": [
+          {
+            "fact": "Mioview App existe no Brasil (iOS + Android), conecta oftalmologistas, pais e óticas para monitoramento de miopia infantil",
+            "source": "https://apps.apple.com/br/app/mioview-app/id6476230153"
+          },
+          {
+            "fact": "Vision.app e myopia.app focam em rastreamento de hábitos digitais (distância de tela, brilho, tempo de uso) — não são apps de adesão a tratamento",
+            "source": "https://play.google.com/store/apps/details?id=org.visionapp&hl=en_US"
+          },
+          {
+            "fact": "Comprimento axial (mm) é padrão-ouro para medir progressão; equivalente esférico é complementar para prescrição funcional — ambos devem estar no dashboard",
+            "source": "https://reviewofmm.com/spherical-equivalent-axial-length-or-both-to-measure-myopia-progression/"
+          },
+          {
+            "fact": "Atropina 0.01% é administrada diariamente ao deitar (noturna); colírio à noite pode causar incômodo sleep/compliance",
+            "source": "https://www.allaboutvision.com/conditions/myopia/myopia-control-atropine-eye-drops/"
+          },
+          {
+            "fact": "Retenção média app saúde: dia 1 = 27%, dia 7 = 13%, dia 30 = 3-12% — apps de produtividade retêm melhor (32% dia 1, 25% dia 7, 9% dia 30)",
+            "source": "https://getstream.io/blog/app-retention-guide/"
+          },
+          {
+            "fact": "Mais de 90% dos usuários abandona app antes de 30 dias; engajamento cai após 60 dias se não há perturbação (doença, trabalho, stress)",
+            "source": "https://www.jmir.org/2024/1/e56897"
+          },
+          {
+            "fact": "Gamification com reminders melhora adesão medicamentosa em +23%; badges/pontos isolados têm eficácia questionada; leaderboards não têm evidência em crianças",
+            "source": "https://mhealth.jmir.org/2022/2/e30671/"
+          },
+          {
+            "fact": "Avatares + progresso visual têm efeito positivo; streaks funcionam apenas se app acomoda interrupções (doença, férias); rígidos causam abandono rápido",
+            "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6096297/"
+          },
+          {
+            "fact": "Ortho-K no Brasil custa ~R$ 5.000 (adaptação + exames + follow-up); mercado crescente, focado em clínicas privadas premium",
+            "source": "https://clinicaviziou.com.br/quanto-custa-a-ortoceratologia-ortho-k/"
+          },
+          {
+            "fact": "Klingo possui API pública e Node SDK no GitHub; integração viável mas EMRs brasileiros sofrem de baixa interoperabilidade (HL7 FHIR ainda em adoção)",
+            "source": "https://github.com/ValleSaude/klingo-node-sdk"
+          },
+          {
+            "fact": "Apps parent-managed (sem celular da criança) são viáveis; necessitam autenticação parental robusta e design focado em responsável adulto",
+            "source": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10785842/"
+          },
+          {
+            "fact": "B2B + hybrid models vencem no healthcare 2026: B2C retém 3-5% mês 1, B2B oferece contrato estável de 3-12 meses",
+            "source": "https://interexy.com/healthcare-app-monetization-models"
+          }
+        ],
+        "critical_claims": [
+          {
+            "claim": "Retenção dia 30 = 3-12% para apps de saúde geral; Mioview já existe em produção no Brasil cobrindo parte do escopo",
+            "why_it_matters": "Define teto máximo de êxito market-wise. Competição indireta já presente. Unit economics precisam de LTV 10x CAC apenas em B2B (clínicas) para viabilidade."
+          },
+          {
+            "claim": "Colírio de atropina é noturno, não é notificação de dia (evita burden); mas lente ortho-k sim requer notificação diária de colocação/remoção (manhã/noite)",
+            "why_it_matters": "Design da notificação é crítico. Notificação noturna de colírio pode gerar fricção com sono. App é do responsável (pais), não criança — notificação deve ser silenciosa/discreta."
+          },
+          {
+            "claim": "Gamification funciona (reminders +23%, avatares + progresso visual positivos) apenas em 60 dias iniciais; após isso, churn é implacável sem fator externo (social, coaching)",
+            "why_it_matters": "MVP não deve contar com gamification como retenção de longo prazo. Features 'bonitas' (avatares, badges) virão depois. Priorizar: reminder automático + dashboard clínico crível."
+          },
+          {
+            "claim": "Integração Klingo é viável (API pública) mas EMRs brasileiros carecem de FHIR/HL7 padrão — cada integração requer custom mapping",
+            "why_it_matters": "Modelo de go-to-market deve ser B2B (vender para clínica interessada + médica Dra. Christiane). Integração Klingo é detalhe roadmap, não blocker MVP."
+          }
+        ],
+        "risks": [
+          "Churn severo (92-97% em mês 1) reduz LTV; modelo B2C puro é inviável — precisa revenue B2B (clínicas, redes) ou subscrição familiar de longa permanência.",
+          "Criança sem celular é feature OK mas gera UX complexa (login responsável + gestão multi-filho). Responsável esquecer notificação é tão problema quanto criança.",
+          "Notificação noturna de colírio é intrusiva durante sono infantil; app pode virar 'culpado' por insônia se notificação chegar 21h+. Requer timezone + sono estimado.",
+          "Mioview, vision.app, myopia.app já ocupam espaço em loja; diferenciação unclear (Mioview conecta médico + pais, faz tudo que seu MVP planejado + mais).",
+          "Abandonware em loja (app não atualizado, reviews ruins de bug) mata adoção no Brasil. Requer commit de manutenção 24/7 ou modelo gerenciado (clínica cobre).",
+          "Integração Klingo depende de willingness médica em usar; se Dra. Christiane não digita dados em tempo real, app fica só com histórico retrospectivo (perda de valor).",
+          "Gamification sem social/coaching cai 90% em 90 dias; avatar bonito não basta. Requer mecanismo de accountability (responsável ve progresso REAL de redução axial)."
+        ],
+        "recommendation": "\n**Recomendação: Viável com pivô de modelo de negócio.**\n\nApp é tecnicamente viável e resolve problema real (adesão é bottleneck clínico), MAS retenção B2C pura vai ser 3-5% mês 1. Só faz sentido com:\n\n1. **Modelo B2B-first (2026 trend na healthtech)**: Vender pacote \"Alta de Pinheiros Myopia Tracking\" para a clínica por R$ 50-100/paciente.mês ou percentual do ortho-K/atropina (recorrente). Klingo integra; médica alimenta dados (dioptrias, axial) diretamente no EMR; app consome e notifica pais. Clínica oferece como \"ferramenta de fidelização\" aos pacientes.\n\n2. **MVP reduzido, 3 meses, 5 features core:**\n   - Login responsável (CPF/email) + gestão de 1-3 filhos\n   - Dashboard minimalista: último equivalente esférico, últimas 3 medições de comprimento axial, trend (seta verde=controle bom, vermelha=progressão)\n   - Notificações smart: colírio às 20h, ortho-k manhã/noite (configurável, evita 21h+)\n   - Histórico clínico desde inicio tratamento (dados puxados Klingo ou CSV upload manual médica)\n   - Feedback simples: \"Parabéns, controle mantido vs. Atenção, crescimento acelerado\"\n\n3. **Deixar para v2 (pós-MVP, se B2B viável):**\n   - Avatar/mascote\n   - Leaderboard social\n   - Rewards configuráveis pelos pais\n   - Integração com wearables (sono, atividade física)\n\n4. **Go-to-market**: Abordagem Dra. Christiane e grupo Boavista com proposta: \"Retenção de pacientes de ortho-k/atropina + NPS melhor\". Ofereça integração grátis 1º mês, fee-sharing no crescimento.\n\n5. **Métrica crítica de sucesso**: Dia 30 retention > 30% (vs. 3% saúde geral) porque é clínica que recapta, não pais que \"decidem sair\".\n\n**Risco aceitável:** 2-3 clínicas fechadas no Brasil (Alto Pinheiros + Boavista) = 300-500 pacientes = R$ 15-50k/mês em receita. Viável como side project + consultoria.\n",
+        "verifications": []
+      }
+    ],
+    "critic": null
+  }
+}

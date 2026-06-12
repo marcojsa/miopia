@@ -1,0 +1,8 @@
+{
+  "name": "@miopia/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tipos compartilhados (gerados por supabase gen types) entre app mobile e painel",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

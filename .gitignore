@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+dist/
+build/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+Thumbs.db
+*.log
+.vercel/
+ios/
+android/
