@@ -2,6 +2,7 @@
   "expo": {
     "name": "Controle da Miopia",
     "slug": "miopia-mobile",
+    "owner": "marcojsa",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -42,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f11fc773-65f0-4d2b-b5ce-6c99ceb60391"
+      }
     }
   }
 }
