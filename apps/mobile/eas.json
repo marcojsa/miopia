@@ -10,6 +10,16 @@
         "buildType": "apk"
       }
     },
+    "demo": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://menokoamgxmmdohneray.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_soIL3_GiDVj80KZNRXPVVw_XWaoX6xL"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "channel": "preview"
