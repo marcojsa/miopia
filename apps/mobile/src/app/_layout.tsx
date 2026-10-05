@@ -19,7 +19,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { persistOptions, queryClient } from '@/lib/queryClient';
 import { ensureAndroidChannels } from '@/lib/notifications/channels';
@@ -43,15 +43,22 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Web (só para testes automatizados): expo-notifications não existe no navegador e
+// LANÇA dentro do render (useLastNotificationResponse) — tela branca. Nada disso
+// roda no web; no aparelho o comportamento é o mesmo de antes.
+const NOTIFICACOES_DISPONIVEIS = Platform.OS !== 'web';
+
 function useNotificationSetup() {
   // Canais Android (antes de QUALQUER agendamento) + categoria com botões Feito/Pular.
   useEffect(() => {
+    if (!NOTIFICACOES_DISPONIVEIS) return;
     void ensureAndroidChannels();
     void registerCheckinCategory();
   }, []);
 
   // Respostas com o app vivo (foreground/background).
   useEffect(() => {
+    if (!NOTIFICACOES_DISPONIVEIS) return;
     const sub = Notifications.addNotificationResponseReceivedListener((resp) => {
       void processNotificationResponseOnce(resp);
     });
@@ -60,7 +67,8 @@ function useNotificationSetup() {
 
   // Cold start: iOS pode segurar a resposta até a próxima abertura do app.
   // processNotificationResponseOnce deduplica contra o listener acima.
-  const lastResponse = Notifications.useLastNotificationResponse();
+  // (Platform.OS é constante durante a execução, então a ordem dos hooks não muda.)
+  const lastResponse = NOTIFICACOES_DISPONIVEIS ? Notifications.useLastNotificationResponse() : null;
   useEffect(() => {
     if (lastResponse) void processNotificationResponseOnce(lastResponse);
   }, [lastResponse]);

@@ -119,6 +119,7 @@ function alreadyScheduled(
  * Fonte do estado desejado: cache TanStack (funciona offline).
  */
 export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Promise<void> {
+  if (Platform.OS === 'web') return; // sem notificações no navegador (só testes)
   const desired = buildDesired(children);
 
   // Estado ATUAL no SO
@@ -167,5 +168,6 @@ export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Pr
 
 /** Cancela TODOS os lembretes locais (logout / troca de conta). */
 export async function cancelAllSchedules(): Promise<void> {
+  if (Platform.OS === 'web') return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
