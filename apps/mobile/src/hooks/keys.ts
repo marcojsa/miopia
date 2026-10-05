@@ -2,9 +2,13 @@
 // invalidateQueries({ queryKey: ['adherence'] }) pega 'today' e por-criança).
 export const queryKeys = {
   children: ['children'] as const,
+  /** A conta logada é da equipe da clínica (não do responsável)? */
+  isStaff: (userId: string | null) => ['is-staff', userId ?? 'anon'] as const,
   /** Sem childId usa o sentinela 'all' (todos os tratamentos ativos da família). */
   treatments: (childId?: string) => ['treatments', childId ?? 'all'] as const,
-  adherenceToday: ['adherence', 'today'] as const,
+  /** Check-ins de UMA data lógica (corte 04h): a data entra na key para não servir ontem como hoje. */
+  adherenceToday: (date: string) => ['adherence', 'today', date] as const,
+  /** Prefixo do histórico da criança; a query completa acrescenta a data inicial. */
   adherenceByChild: (childId: string) => ['adherence', childId] as const,
   measurements: (childId: string) => ['measurements', childId] as const,
   reminderPrefs: ['reminder-prefs'] as const,

@@ -31,6 +31,10 @@ export function App() {
           path="/criancas/:childId/nova-medicao"
           element={<NewMeasurementPage />}
         />
+        <Route
+          path="/criancas/:childId/medicoes/:measurementId/editar"
+          element={<NewMeasurementPage />}
+        />
         <Route path="/convites" element={<InvitesPage />} />
       </Route>
 

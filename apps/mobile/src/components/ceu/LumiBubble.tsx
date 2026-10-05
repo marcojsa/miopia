@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText } from '@/components/ui';
+import { MILESTONE_LABEL, faltamNoites } from '@/lib/gamification';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 export interface LumiBubbleProps {
@@ -14,16 +15,6 @@ export interface LumiBubbleProps {
   totalNights: number;
   nextMilestone: 7 | 30 | 90 | null;
   nightsToNextMilestone: number;
-}
-
-const MILESTONE_NAME: Record<7 | 30 | 90, string> = {
-  7: 'primeira constelação',
-  30: 'Constelação da Coruja',
-  90: 'Diploma do Cuidado',
-};
-
-function nightWord(n: number): string {
-  return n === 1 ? 'noite' : 'noites';
 }
 
 // Frase contextual SEM número clínico. Usa noites de cuidado e o próximo marco.
@@ -36,7 +27,7 @@ function incentive(props: LumiBubbleProps): string {
     return `Céu completo! ${childName} cuidou da visão por 90 noites. Que orgulho.`;
   }
   if (nightsToNextMilestone <= 3) {
-    return `Faltam só ${nightsToNextMilestone} ${nightWord(nightsToNextMilestone)} para a ${MILESTONE_NAME[nextMilestone]}!`;
+    return `${faltamNoites(nightsToNextMilestone, true)} para ${MILESTONE_LABEL[nextMilestone]}!`;
   }
   return `Cada noite de cuidado acende uma estrela. Continue assim, ${childName}!`;
 }

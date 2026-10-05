@@ -69,3 +69,59 @@ export function useCreateMeasurement(childId: string) {
     },
   });
 }
+
+export type MeasurementUpdate = Omit<MeasurementInsert, 'child_id' | 'recorded_by'>;
+
+// Corrigir uma medição já salva (erro de digitação). O app da família passa a
+// exibir o valor corrigido; od_se/oe_se são recalculados pelo banco.
+export function useUpdateMeasurement(childId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      values,
+    }: {
+      id: string;
+      values: MeasurementUpdate;
+    }): Promise<void> => {
+      const { data, error } = await supabase
+        .from('measurements')
+        .update({
+          measured_on: values.measured_on,
+          od_sphere: values.od_sphere,
+          od_cylinder: values.od_cylinder,
+          oe_sphere: values.oe_sphere,
+          oe_cylinder: values.oe_cylinder,
+          od_axial_mm: values.od_axial_mm,
+          oe_axial_mm: values.oe_axial_mm,
+          status: values.status,
+          doctor_note: values.doctor_note,
+        })
+        .eq('id', id)
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Medição não encontrada ou sem permissão.');
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: measurementsKey(childId) });
+    },
+  });
+}
+
+export function useDeleteMeasurement(childId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { data, error } = await supabase
+        .from('measurements')
+        .delete()
+        .eq('id', id)
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) throw new Error('Medição não encontrada ou sem permissão.');
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: measurementsKey(childId) });
+    },
+  });
+}

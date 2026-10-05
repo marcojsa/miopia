@@ -1,4 +1,4 @@
-// Card escuro "O céu da [filho]" (mockup .ceu-card): porta de entrada para o
+// Card escuro "O céu de [filho]" (mockup .ceu-card): porta de entrada para o
 // Céu da criança. Lumi pequena + resumo de ADESÃO ("N noites de cuidado no
 // total · M escudos guardados") + botão "Abrir o céu". Celebra adesão, nunca
 // resultado clínico. Gradiente cardCeu + sombra cardDark (sobre fundo claro).
@@ -16,11 +16,11 @@ export interface SkyTeaserCardProps {
   onOpen: () => void;
 }
 
-function summaryLine(totalNights: number, shieldsAvailable: number): string {
+function summaryLine(childName: string, totalNights: number, shieldsAvailable: number): string {
   const nights = `${totalNights} ${totalNights === 1 ? 'noite' : 'noites'} de cuidado no total`;
-  if (shieldsAvailable <= 0) return `${nights}. Mostre o céu para ele.`;
+  if (shieldsAvailable <= 0) return `${nights}. Mostre o céu para ${childName}.`;
   const shields = `${shieldsAvailable} ${shieldsAvailable === 1 ? 'escudo guardado' : 'escudos guardados'}`;
-  return `${nights} · ${shields}. Mostre o céu para ele.`;
+  return `${nights} · ${shields}. Mostre o céu para ${childName}.`;
 }
 
 export function SkyTeaserCard({ childName, totalNights, shieldsAvailable, onOpen }: SkyTeaserCardProps) {
@@ -33,10 +33,10 @@ export function SkyTeaserCard({ childName, totalNights, shieldsAvailable, onOpen
     >
       <View style={styles.text}>
         <AppText variant="cardTitle" color={colors.white}>
-          O céu da {childName}
+          O céu de {childName}
         </AppText>
         <AppText variant="meta" color={colors.purple200} style={styles.summary}>
-          {summaryLine(totalNights, shieldsAvailable)}
+          {summaryLine(childName, totalNights, shieldsAvailable)}
         </AppText>
         <Pressable
           onPress={onOpen}

@@ -13,11 +13,13 @@ import {
   Nunito_900Black,
 } from '@expo-google-fonts/nunito';
 import NetInfo from '@react-native-community/netinfo';
+import { focusManager, onlineManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
-import { Stack } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
@@ -44,9 +46,22 @@ Notifications.setNotificationHandler({
 });
 
 // Web (só para testes automatizados): expo-notifications não existe no navegador e
-// LANÇA dentro do render (useLastNotificationResponse) — tela branca. Nada disso
-// roda no web; no aparelho o comportamento é o mesmo de antes.
+// LANÇA — tela branca. Nada disso roda no web; no aparelho o comportamento é o
+// mesmo de antes.
 const NOTIFICACOES_DISPONIVEIS = Platform.OS !== 'web';
+
+// No aparelho o React Query não sabe sozinho de foco nem de rede: sem isto,
+// refetchOnWindowFocus/refetchOnReconnect nunca disparam e a Hoje pode seguir com
+// os check-ins de ontem. No web os padrões do próprio React Query já funcionam.
+if (Platform.OS !== 'web') {
+  focusManager.setEventListener((handleFocus) => {
+    const sub = AppState.addEventListener('change', (state) => handleFocus(state === 'active'));
+    return () => sub.remove();
+  });
+  onlineManager.setEventListener((setOnline) =>
+    NetInfo.addEventListener((state) => setOnline(state.isConnected !== false))
+  );
+}
 
 function useNotificationSetup() {
   // Canais Android (antes de QUALQUER agendamento) + categoria com botões Feito/Pular.
@@ -65,13 +80,16 @@ function useNotificationSetup() {
     return () => sub.remove();
   }, []);
 
-  // Cold start: iOS pode segurar a resposta até a próxima abertura do app.
-  // processNotificationResponseOnce deduplica contra o listener acima.
-  // (Platform.OS é constante durante a execução, então a ordem dos hooks não muda.)
-  const lastResponse = NOTIFICACOES_DISPONIVEIS ? Notifications.useLastNotificationResponse() : null;
+  // Cold start: a resposta que abriu o app (iOS pode segurá-la até a próxima
+  // abertura). Lida uma vez e limpa; processNotificationResponseOnce deduplica
+  // contra o listener acima. A navegação do tap no corpo fica pendente na store
+  // até o grupo (app) montar, então não depende do Stack já existir aqui.
   useEffect(() => {
-    if (lastResponse) void processNotificationResponseOnce(lastResponse);
-  }, [lastResponse]);
+    if (!NOTIFICACOES_DISPONIVEIS) return;
+    const last = Notifications.getLastNotificationResponse();
+    if (last) void processNotificationResponseOnce(last);
+    Notifications.clearLastNotificationResponse();
+  }, []);
 }
 
 function useOutboxSync() {
@@ -90,6 +108,20 @@ function useOutboxSync() {
     });
     return () => sub.remove();
   }, []);
+}
+
+// Status bar por rota: telas com topo roxo escuro (Hoje, login/consentimento/
+// boas-vindas, Céu, links de convite e senha) pedem ícones claros; o resto tem
+// topo claro. Um único StatusBar na raiz evita que as abas (que ficam todas
+// montadas) disputem o estilo entre si.
+const ROTAS_TOPO_ESCURO = new Set(['(auth)', 'ceu', 'convite', 'recuperar-senha']);
+
+function RouteStatusBar() {
+  const segments = useSegments() as string[];
+  const [first, second] = segments;
+  const hoje = first === '(app)' && (second === undefined || second === 'index');
+  const escuro = hoje || (first !== undefined && ROTAS_TOPO_ESCURO.has(first));
+  return <StatusBar style={escuro ? 'light' : 'dark'} />;
 }
 
 export default function RootLayout() {
@@ -118,6 +150,7 @@ export default function RootLayout() {
   return (
     <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <AuthProvider>
+        <RouteStatusBar />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(app)" />
@@ -128,6 +161,9 @@ export default function RootLayout() {
           {/* Céu da criança: tela cheia sobre tudo, sem tab bar (mockup ceu.html).
               A rota app/ceu.tsx é criada pelo agente da tela Céu. */}
           <Stack.Screen name="ceu" options={{ presentation: 'fullScreenModal' }} />
+          {/* Links de e-mail (convite e recuperação): fora dos guards, abrem a sessão pelo link. */}
+          <Stack.Screen name="convite" />
+          <Stack.Screen name="recuperar-senha" />
         </Stack>
       </AuthProvider>
     </PersistQueryClientProvider>

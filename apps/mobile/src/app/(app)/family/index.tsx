@@ -14,9 +14,8 @@ import { ChevronIcon, PeopleIcon } from '@/components/icons';
 import { SettingsRow, ageLabel, regimeSummary } from '@/components/familia';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, Card, ChildAvatar, EmptyState, Screen, SectionHeader } from '@/components/ui';
-import { useChildren, useTreatments } from '@/hooks';
-import { cancelAllSchedules } from '@/lib/notifications/scheduler';
-import { supabase } from '@/lib/supabase';
+import { useChildren, useReminderPrefs, useTreatments } from '@/hooks';
+import { signOutDoAparelho } from '@/lib/session';
 import { useSession } from '@/providers/auth';
 import { colors, spacing } from '@/theme/tokens';
 
@@ -27,10 +26,12 @@ export default function FamilyIndexScreen() {
 
   const childrenQuery = useChildren();
   const treatmentsQuery = useTreatments();
+  const prefsQuery = useReminderPrefs();
   const [signingOut, setSigningOut] = useState(false);
 
   const children = childrenQuery.data ?? [];
   const treatments = treatmentsQuery.data ?? [];
+  const prefs = prefsQuery.data ?? [];
   const email = session?.user.email ?? 'Sem e-mail';
 
   const handleSignOut = (): void => {
@@ -54,10 +55,15 @@ export default function FamilyIndexScreen() {
   const doSignOut = async (): Promise<void> => {
     setSigningOut(true);
     try {
-      // Lembretes são locais a este aparelho: ao sair, limpamos para não
-      // tocar na conta de outra pessoa que entrar depois.
-      await cancelAllSchedules();
-      await supabase.auth.signOut();
+      // Lembretes, cache e fila de check-ins são deste aparelho: ao sair, tudo é
+      // apagado para não aparecer na conta de outra pessoa que entrar depois.
+      const { servidorAvisado } = await signOutDoAparelho();
+      if (!servidorAvisado) {
+        Alert.alert(
+          'Você saiu deste aparelho',
+          'Sem conexão não deu para avisar o servidor; a sessão lá expira sozinha.'
+        );
+      }
       // O guard do (app)/_layout redireciona ao detectar a sessão nula.
     } catch {
       Alert.alert('Não foi possível sair agora', 'Tente novamente em instantes.');
@@ -125,7 +131,7 @@ export default function FamilyIndexScreen() {
                       {age ? `${child.first_name}, ${age}` : child.first_name}
                     </AppText>
                     <AppText variant="meta" color={colors.ink2} style={styles.childRegime}>
-                      {regimeSummary(treatment)}
+                      {regimeSummary(treatment, prefs)}
                     </AppText>
                   </View>
                   <ChevronIcon direction="right" color={colors.ink3} size={20} />

@@ -15,7 +15,7 @@
 -- Tudo dentro de uma transação com rollback: o banco fica intacto.
 -- ============================================================
 begin;
-select plan(67);
+select plan(72);
 
 -- ------------------------------------------------------------
 -- O banco de dev chega SEEDADO (`supabase db reset` roda o seed.sql) e as
@@ -103,6 +103,11 @@ insert into public.deletion_requests (user_id, notes) values
 -- T1 — RLS habilitado em TODAS as tabelas do schema public
 -- ------------------------------------------------------------
 select tests.rls_enabled('public');
+
+select ok(has_table_privilege('authenticated', 'public.children', 'select'),
+  'authenticated tem GRANT explícito (não depende de auto_expose)');
+select has_trigger('public', 'reminder_prefs', 'reminder_prefs_set_updated_at',
+  'reminder_prefs atualiza updated_at em todo update');
 
 -- ------------------------------------------------------------
 -- T2..T14 — ANON: acesso zero em TODAS as tabelas.
@@ -288,6 +293,27 @@ select throws_ok(
          tests.get_supabase_uid('mae_b')),
   '42501', null,
   'consentimento com user_id de OUTRA pessoa é RECUSADO');
+select throws_ok(
+  format($q$ insert into public.consents (user_id, guardian_name_snapshot, term_id, child_id)
+             values ('%s', 'Mãe A', 'cccccccc-0000-4000-a000-000000000001',
+                     'aaaaaaaa-0000-4000-a000-000000000002') $q$,
+         tests.get_supabase_uid('mae_a')),
+  '23505', null,
+  'segundo aceite ATIVO do mesmo termo para a mesma criança é recusado');
+select results_eq(
+  $q$ with u as (
+        update public.consents set revoked_at = now()
+        where child_id = 'aaaaaaaa-0000-4000-a000-000000000002' and revoked_at is null
+        returning 1)
+      select count(*)::int from u $q$,
+  array[1],
+  'responsável A revoga o próprio consentimento');
+select lives_ok(
+  format($q$ insert into public.consents (user_id, guardian_name_snapshot, term_id, child_id)
+             values ('%s', 'Mãe A', 'cccccccc-0000-4000-a000-000000000001',
+                     'aaaaaaaa-0000-4000-a000-000000000002') $q$,
+         tests.get_supabase_uid('mae_a')),
+  'depois de revogar, responsável A consegue autorizar de novo (revogação fica na trilha)');
 select results_eq('select count(*) from public.consent_terms', array[1::bigint],
   'responsável lê o termo de consentimento ativo');
 
@@ -367,7 +393,7 @@ select results_eq(
       select count(*)::int from u $q$,
   array[1],
   'staff atualiza prescrição de tratamento');
-select results_eq('select count(*) from public.consents', array[2::bigint],
+select results_eq('select count(*) from public.consents', array[3::bigint],
   'staff lê todos os consentimentos (prova LGPD)');
 select results_eq('select count(*) from public.family_invites', array[1::bigint],
   'staff vê os convites');

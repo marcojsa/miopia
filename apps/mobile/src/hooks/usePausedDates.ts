@@ -7,20 +7,23 @@
 // - 'reminders:paused:<childId>'        -> 'true' | 'false' (pausa de férias ATIVA?)
 // - 'reminders:paused-dates:<childId>'  -> JSON string[] de datas lógicas
 //   'YYYY-MM-DD' que passaram em pausa (viram NUVEM no céu — computeSky).
+// - 'reminders:paused-since:<childId>'  -> data lógica em que a pausa ATIVA começou.
 //
-// Quem registra cada dia pausado: chame markTodayPausedIfNeeded(childId) ao
-// abrir a tela Hoje (e/ou no sync de lembretes). setChildPaused(true) já
-// registra a data de hoje. Quem pausa também deve refletir nos lembretes via
-// syncSchedulesForFamily({ remindersPaused: true }).
+// Toda noite de [since, hoje] conta como pausada, mesmo que o app não seja
+// aberto nas férias: getPausedState expande o intervalo e setChildPaused(false)
+// grava o intervalo inteiro em paused-dates. Quem pausa também deve refletir
+// nos lembretes via syncSchedulesForFamily({ remindersPaused: true }).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { localDateString } from '@/lib/date';
+import { datesBetween } from '@/lib/gamification';
 import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from './keys';
 
 const pausedKey = (childId: string) => `reminders:paused:${childId}`;
 const pausedDatesKey = (childId: string) => `reminders:paused-dates:${childId}`;
+const pausedSinceKey = (childId: string) => `reminders:paused-since:${childId}`;
 
 export interface PausedState {
   /** Pausa de férias ativa para o filho (booleano único, sem data de fim no MVP). */
@@ -31,9 +34,10 @@ export interface PausedState {
 
 /** Lê o estado de pausa direto do AsyncStorage (fora de componentes). */
 export async function getPausedState(childId: string): Promise<PausedState> {
-  const [pausedRaw, datesRaw] = await Promise.all([
+  const [pausedRaw, datesRaw, sinceRaw] = await Promise.all([
     AsyncStorage.getItem(pausedKey(childId)),
     AsyncStorage.getItem(pausedDatesKey(childId)),
+    AsyncStorage.getItem(pausedSinceKey(childId)),
   ]);
   let pausedDates: string[] = [];
   try {
@@ -41,7 +45,17 @@ export async function getPausedState(childId: string): Promise<PausedState> {
   } catch {
     pausedDates = [];
   }
-  return { paused: pausedRaw === 'true', pausedDates };
+  const paused = pausedRaw === 'true';
+  if (paused && sinceRaw) {
+    pausedDates = withRange(pausedDates, sinceRaw, localDateString());
+  }
+  return { paused, pausedDates };
+}
+
+function withRange(dates: string[], since: string, until: string): string[] {
+  const all = new Set(dates);
+  for (const d of datesBetween(since, until)) all.add(d);
+  return [...all].sort();
 }
 
 /**
@@ -50,7 +64,8 @@ export async function getPausedState(childId: string): Promise<PausedState> {
  */
 export function usePausedDates(childId: string): UseQueryResult<PausedState> {
   return useQuery({
-    queryKey: queryKeys.paused(childId),
+    // A data entra na key: pausa ativa ganha uma nuvem a cada noite que passa.
+    queryKey: [...queryKeys.paused(childId), localDateString()],
     enabled: childId.length > 0,
     staleTime: Infinity,
     queryFn: () => getPausedState(childId),
@@ -70,8 +85,19 @@ async function appendPausedDate(childId: string, date: string): Promise<boolean>
  * syncSchedulesForFamily() depois, com remindersPaused refletindo este valor.
  */
 export async function setChildPaused(childId: string, paused: boolean): Promise<void> {
-  await AsyncStorage.setItem(pausedKey(childId), paused ? 'true' : 'false');
-  if (paused) await appendPausedDate(childId, localDateString());
+  const today = localDateString();
+  if (paused) {
+    const since = await AsyncStorage.getItem(pausedSinceKey(childId));
+    if (!since) await AsyncStorage.setItem(pausedSinceKey(childId), today);
+    await AsyncStorage.setItem(pausedKey(childId), 'true');
+    await appendPausedDate(childId, today);
+  } else {
+    // Fecha a pausa: grava todas as noites de [since, hoje] antes de desligar.
+    const { pausedDates } = await getPausedState(childId);
+    await AsyncStorage.setItem(pausedDatesKey(childId), JSON.stringify(pausedDates));
+    await AsyncStorage.setItem(pausedKey(childId), 'false');
+    await AsyncStorage.removeItem(pausedSinceKey(childId));
+  }
   void queryClient.invalidateQueries({ queryKey: queryKeys.paused(childId) });
 }
 
@@ -83,6 +109,10 @@ export async function setChildPaused(childId: string, paused: boolean): Promise<
 export async function markTodayPausedIfNeeded(childId: string): Promise<void> {
   const { paused } = await getPausedState(childId);
   if (!paused) return;
-  const added = await appendPausedDate(childId, localDateString());
+  const today = localDateString();
+  // Pausa ligada antes de existir paused-since: o intervalo começa hoje.
+  const since = await AsyncStorage.getItem(pausedSinceKey(childId));
+  if (!since) await AsyncStorage.setItem(pausedSinceKey(childId), today);
+  const added = await appendPausedDate(childId, today);
   if (added) void queryClient.invalidateQueries({ queryKey: queryKeys.paused(childId) });
 }

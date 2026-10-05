@@ -69,6 +69,8 @@ export interface PendingCheckin {
   status: AdherenceStatus;
   note: string | null;
   logged_by: string | null;
+  /** Correção de uma resposta já enviada: sobrescreve no servidor em vez de ignorar. */
+  replace?: boolean;
 }
 
 // ── Entrada do scheduler de lembretes (derivada de Treatment + ReminderPref) ─
@@ -77,10 +79,22 @@ export interface ReminderTime {
   minute: number;
 }
 
+/** Janela e dias prescritos (treatments.days_of_week/starts_on/ends_on; 0=domingo). */
+export interface ReminderSchedule {
+  daysOfWeek: number[];
+  startsOn: string;
+  endsOn: string | null;
+}
+
 export interface ChildScheduleInput {
   childId: string;
   firstName: string;
   remindersPaused: boolean; // férias/doença — cancela todos os lembretes do filho
-  atropina?: { treatmentId: string; time: ReminderTime };
-  orthok?: { treatmentId: string; onTime: ReminderTime; offTime: ReminderTime };
+  atropina?: { treatmentId: string; time: ReminderTime; schedule: ReminderSchedule };
+  orthok?: {
+    treatmentId: string;
+    onTime: ReminderTime;
+    offTime: ReminderTime;
+    schedule: ReminderSchedule;
+  };
 }

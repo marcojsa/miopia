@@ -7,7 +7,8 @@
 // absolutos. ZERO variação/delta entre consultas, ZERO seta, ZERO média, ZERO
 // gráfico, ZERO cor semafórica. Valores clínicos em TINTA NEUTRA (ink/ink2/ink3).
 // A única interpretação é o texto da médica, SEMPRE em roxo neutro fixo (a cor
-// NÃO muda com o status). status 'sem_avaliacao' omite o bloco da Dra.
+// NÃO muda com o status). status 'sem_avaliacao' omite apenas a linha de status;
+// o recado, se houver, aparece.
 import { StyleSheet, View } from 'react-native';
 
 import { StethoscopeIcon } from './StethoscopeIcon';
@@ -56,7 +57,7 @@ export function MeasurementCard({ measurement: m }: MeasurementCardProps) {
   const consultaData = longDateWithYearPtBR(m.measured_on);
   const statusLabel = clinicalStatusLabel(m.status);
   const hasNote = m.doctor_note !== null && m.doctor_note.trim().length > 0;
-  const showDoctorBlock = m.status !== 'sem_avaliacao' && (hasNote || statusLabel !== null);
+  const showDoctorBlock = hasNote || statusLabel !== null;
 
   const rows: EyeRow[] = [
     buildEyeRow('Olho direito (OD)', m.od_sphere, m.od_cylinder, m.od_se, m.od_axial_mm),

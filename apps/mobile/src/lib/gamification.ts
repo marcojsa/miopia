@@ -22,7 +22,7 @@ import { formatLocalYMD, localDateString } from './date.ts';
 /** Subconjunto de AdherenceLog que a gamificação usa (facilita testes). */
 export type GamificationLog = Pick<AdherenceLog, 'log_date' | 'status'>;
 
-export type SkyDayState = 'gold' | 'silver' | 'cloud' | 'empty' | 'future' | 'before_start';
+export type SkyDayState = 'gold' | 'silver' | 'cloud' | 'empty' | 'future' | 'before_start' | 'off';
 
 export interface SkyDay {
   /** Data lógica da noite, 'YYYY-MM-DD'. */
@@ -45,7 +45,7 @@ export interface MilestonesResult {
   nightsToNextMilestone: number;
 }
 
-export type WeekDayState = 'gold' | 'silver' | 'cloud' | 'empty' | 'today_pending' | 'future';
+export type WeekDayState = 'gold' | 'silver' | 'cloud' | 'empty' | 'today_pending' | 'future' | 'off';
 
 export interface WeekDay {
   date: string;
@@ -62,6 +62,22 @@ export interface WeekResult {
 }
 
 const MILESTONES: ReadonlyArray<7 | 30 | 90> = [7, 30, 90];
+
+/** Nome do marco com o artigo certo, para frases "para <nome>". */
+export const MILESTONE_LABEL: Record<7 | 30 | 90, string> = {
+  7: 'a primeira constelação',
+  30: 'a Constelação da Coruja',
+  90: 'o Diploma do Cuidado',
+};
+
+/** "Falta 1 noite" / "Faltam 3 noites" (com `so`: "Falta só 1 noite"). */
+export function faltamNoites(n: number, so = false): string {
+  const just = so ? ' só' : '';
+  return n === 1 ? `Falta${just} 1 noite` : `Faltam${just} ${n} noites`;
+}
+
+/** Diz se a noite da data tinha cuidado programado (dias da semana, fim do tratamento). */
+export type IsNightDue = (date: string) => boolean;
 const MAX_SHIELDS = 3;
 const NIGHTS_PER_SHIELD = 7;
 // Trava de segurança da caminhada cronológica (~5 anos); entradas malformadas
@@ -83,6 +99,16 @@ export function mondayOf(ymd: string): string {
   return addDays(ymd, -((dow + 6) % 7));
 }
 
+/**
+ * Todas as datas de `since` até `until` (inclusive) — as noites de uma pausa de
+ * férias, que viram nuvens mesmo sem o app ter sido aberto nelas.
+ */
+export function datesBetween(since: string, until: string): string[] {
+  const out: string[] = [];
+  for (let d = since; d <= until && out.length < MAX_SIMULATED_NIGHTS; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
 function daysInMonth(monthYM: string): number {
   const [y, m] = monthYM.split('-').map(Number);
   return new Date(y, m, 0).getDate();
@@ -90,7 +116,7 @@ function daysInMonth(monthYM: string): number {
 
 // ── Núcleo: simulação cronológica de noites e escudos ────────────────────────
 
-type NightOutcome = 'complete' | 'saved' | 'missed' | 'paused';
+type NightOutcome = 'complete' | 'saved' | 'missed' | 'paused' | 'off';
 
 interface Simulation {
   /** Resultado por data lógica (de startsOn até hoje, inclusive se relevante). */
@@ -126,7 +152,8 @@ function simulateNights(
   logs: GamificationLog[],
   pausedDates: string[],
   startsOn: string,
-  today: string
+  today: string,
+  isDue?: IsNightDue
 ): Simulation {
   const completeByDate = indexCompleteByDate(logs);
   const paused = new Set(pausedDates);
@@ -146,6 +173,8 @@ function simulateNights(
       total++;
       if (total % NIGHTS_PER_SHIELD === 0 && shields < MAX_SHIELDS) shields++;
       nights.set(date, 'complete');
+    } else if (isDue && !isDue(date)) {
+      nights.set(date, 'off'); // sem cuidado programado: não conta nem consome escudo
     } else if (shields > 0) {
       shields--;
       nights.set(date, 'saved'); // estrela prateada
@@ -168,12 +197,27 @@ function simulateNights(
   return { nights, shieldsAvailable: shields, totalCompleteNights: total };
 }
 
-/** Fallback de starts_on quando o chamador não tem o tratamento à mão. */
+/** Data mais antiga conhecida (logs/pausas); hoje se não houver nenhuma. */
 function inferStartsOn(logs: GamificationLog[], pausedDates: string[], today: string): string {
   let min: string | null = null;
   for (const l of logs) if (min === null || l.log_date < min) min = l.log_date;
   for (const d of pausedDates) if (min === null || d < min) min = d;
   return min ?? today;
+}
+
+/**
+ * Início da caminhada: o mais antigo entre o starts_on dos tratamentos ativos e
+ * o primeiro log/pausa. Trocar ou encerrar um tratamento cria outro starts_on,
+ * mas o histórico de noites da criança continua valendo.
+ */
+function walkStart(
+  logs: GamificationLog[],
+  pausedDates: string[],
+  today: string,
+  startsOn?: string
+): string {
+  const inferred = inferStartsOn(logs, pausedDates, today);
+  return startsOn !== undefined && startsOn < inferred ? startsOn : inferred;
 }
 
 // ── API pública ──────────────────────────────────────────────────────────────
@@ -183,29 +227,34 @@ function inferStartsOn(logs: GamificationLog[], pausedDates: string[], today: st
  * Estados: gold (noite completa) · silver (salva por escudo) · cloud (pausa) ·
  * empty (sem registro e sem escudo) · future (depois de hoje, OU a noite de
  * hoje ainda pendente — a tela detecta date === hoje e desenha a estrela
- * tracejada "hoje") · before_start (antes de treatment.starts_on).
+ * tracejada "hoje") · before_start (antes do início da caminhada) · off (noite
+ * sem cuidado programado; não é desenhada).
  *
- * @param logs Logs de adesão de UMA criança (>= período desde starts_on; use useAdherenceLogs).
+ * @param logs Histórico completo de adesão de UMA criança (use useAdherenceLogs).
  * @param pausedDates Datas 'YYYY-MM-DD' em modo férias/pausa (usePausedDates).
  * @param monthYM Mês exibido, 'YYYY-MM'.
- * @param treatmentStartsOn treatment.starts_on ('YYYY-MM-DD').
+ * @param treatmentStartsOn starts_on mais antigo dos tratamentos ativos ('YYYY-MM-DD');
+ *   a caminhada começa no mais antigo entre ele e o primeiro log/pausa.
  * @param today Data lógica de hoje (corte 04h); padrão localDateString().
+ * @param isDue Noite tinha cuidado programado? Sem ele, toda noite é devida.
  */
 export function computeSky(
   logs: GamificationLog[],
   pausedDates: string[],
   monthYM: string,
   treatmentStartsOn: string,
-  today: string = localDateString()
+  today: string = localDateString(),
+  isDue?: IsNightDue
 ): SkyDay[] {
-  const sim = simulateNights(logs, pausedDates, treatmentStartsOn, today);
+  const from = walkStart(logs, pausedDates, today, treatmentStartsOn);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue);
   const total = daysInMonth(monthYM);
   const days: SkyDay[] = [];
 
   for (let d = 1; d <= total; d++) {
     const date = `${monthYM}-${String(d).padStart(2, '0')}`;
     let state: SkyDayState;
-    if (date < treatmentStartsOn) {
+    if (date < from) {
       state = 'before_start';
     } else if (date > today) {
       state = 'future';
@@ -223,6 +272,9 @@ export function computeSky(
         case 'missed':
           state = 'empty';
           break;
+        case 'off':
+          state = 'off';
+          break;
         default:
           // Só acontece para a noite de HOJE ainda pendente.
           state = 'future';
@@ -237,18 +289,20 @@ export function computeSky(
  * Escudos guardados e total de noites completas (para "27 noites de cuidado ·
  * 2 escudos guardados" e a fileira de escudos do Céu).
  *
- * @param startsOn treatment.starts_on; sem ele, infere da data mais antiga
- *   conhecida (logs/pausas) — passe sempre que possível para que noites sem
- *   registro no começo do tratamento contem como perdidas, igual ao céu.
+ * @param startsOn starts_on mais antigo dos tratamentos ativos; a caminhada
+ *   começa no mais antigo entre ele e a data mais antiga conhecida (logs/pausas)
+ *   — passe sempre que possível, igual ao céu.
+ * @param isDue Noite tinha cuidado programado? Noite não devida não consome escudo.
  */
 export function computeShields(
   logs: GamificationLog[],
   pausedDates: string[],
   today: string = localDateString(),
-  startsOn?: string
+  startsOn?: string,
+  isDue?: IsNightDue
 ): ShieldsResult {
-  const from = startsOn ?? inferStartsOn(logs, pausedDates, today);
-  const sim = simulateNights(logs, pausedDates, from, today);
+  const from = walkStart(logs, pausedDates, today, startsOn);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue);
   return { available: sim.shieldsAvailable, totalNights: sim.totalCompleteNights };
 }
 
@@ -260,9 +314,10 @@ export function computeStreakAndMilestones(
   logs: GamificationLog[],
   pausedDates: string[],
   today: string = localDateString(),
-  startsOn?: string
+  startsOn?: string,
+  isDue?: IsNightDue
 ): MilestonesResult {
-  const { totalNights } = computeShields(logs, pausedDates, today, startsOn);
+  const { totalNights } = computeShields(logs, pausedDates, today, startsOn, isDue);
   const next = MILESTONES.find((m) => totalNights < m) ?? null;
   return {
     totalCompleteNights: totalNights,
@@ -282,10 +337,11 @@ export function computeWeek(
   logs: GamificationLog[],
   pausedDates: string[],
   today: string = localDateString(),
-  startsOn?: string
+  startsOn?: string,
+  isDue?: IsNightDue
 ): WeekResult {
-  const from = startsOn ?? inferStartsOn(logs, pausedDates, today);
-  const sim = simulateNights(logs, pausedDates, from, today);
+  const from = walkStart(logs, pausedDates, today, startsOn);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue);
   const monday = mondayOf(today);
 
   const days: WeekDay[] = [];
@@ -309,6 +365,9 @@ export function computeWeek(
           break;
         case 'missed':
           state = 'empty';
+          break;
+        case 'off':
+          state = 'off';
           break;
         default:
           state = date === today ? 'today_pending' : 'empty';

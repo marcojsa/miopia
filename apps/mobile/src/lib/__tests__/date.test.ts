@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatLocalYMD, localDateString } from '../date.ts';
+import { formatLocalYMD, localDateString, parseLocalYMD, weekdayOfYMD } from '../date.ts';
 
 test('antes das 04h conta como o dia anterior', () => {
   assert.equal(localDateString(new Date(2026, 5, 11, 0, 0)), '2026-06-10');
@@ -24,4 +24,13 @@ test('corte atravessa fronteira de mês e de ano', () => {
 
 test('formatLocalYMD zero-padding', () => {
   assert.equal(formatLocalYMD(new Date(2026, 0, 5)), '2026-01-05');
+});
+
+test('weekdayOfYMD usa a data lógica, não o relógio', () => {
+  // Sábado 2026-10-03 00h30: a noite lógica é sexta (5), não sábado (6).
+  const madrugada = new Date(2026, 9, 3, 0, 30);
+  assert.equal(madrugada.getDay(), 6);
+  assert.equal(weekdayOfYMD(localDateString(madrugada)), 5);
+  assert.equal(weekdayOfYMD('2026-10-04'), 0);
+  assert.equal(parseLocalYMD('2026-01-05').getDate(), 5);
 });

@@ -1,4 +1,5 @@
-import { useMutation } from '@tanstack/react-query';
+import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 
@@ -16,6 +17,56 @@ export interface InviteResult {
   invited_user_id: string;
   invite_id: string;
   expires_at: string;
+  /** true quando era um convite pendente e o e-mail foi apenas reenviado. */
+  resent?: boolean;
+}
+
+const INVITE_ERRORS: Record<string, string> = {
+  email_already_registered: 'Este e-mail já tem conta ativa no app.',
+  primary_already_set:
+    'Esta família já tem um responsável principal. Desmarque "Responsável principal" e envie de novo.',
+  family_not_found: 'Família não encontrada.',
+  not_staff: 'Sua conta não tem perfil de equipe para enviar convites.',
+  invalid_email: 'E-mail inválido.',
+  missing_display_name: 'Informe o nome do responsável.',
+  invalid_jwt: 'Sua sessão expirou. Entre novamente.',
+  missing_authorization: 'Sua sessão expirou. Entre novamente.',
+};
+
+async function inviteErrorMessage(error: unknown): Promise<string> {
+  if (error instanceof FunctionsHttpError) {
+    const response = error.context as Response;
+    const body = (await response.json().catch(() => null)) as
+      | { error?: string; detail?: string }
+      | null;
+    const code = body?.error;
+    if (code && INVITE_ERRORS[code]) return INVITE_ERRORS[code];
+    if (!code && response.status === 404) {
+      return 'A função de convite não está publicada no projeto Supabase.';
+    }
+    return `Não foi possível enviar o convite (${code ?? `HTTP ${response.status}`}). Tente novamente.`;
+  }
+  if (error instanceof FunctionsFetchError) {
+    return 'Não foi possível falar com o servidor de convites. Verifique a conexão.';
+  }
+  return 'Não foi possível enviar o convite. Tente novamente.';
+}
+
+// A família já tem responsável principal? Define o padrão do checkbox do convite.
+export function useFamilyHasPrimary(familyId: string | undefined) {
+  return useQuery({
+    queryKey: ['family-has-primary', familyId],
+    enabled: !!familyId,
+    queryFn: async (): Promise<boolean> => {
+      const { count, error } = await supabase
+        .from('guardians')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('family_id', familyId!)
+        .eq('is_primary', true);
+      if (error) throw error;
+      return (count ?? 0) > 0;
+    },
+  });
 }
 
 // Convida um responsável para uma família existente, via Edge Function
@@ -25,6 +76,7 @@ export interface InviteResult {
 // email + display_name e aceita family_id (existente) OU family_label (nova).
 // Aqui sempre passamos family_id, pois a família já foi criada no painel.
 export function useInviteFamily() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: InviteInput): Promise<InviteResult> => {
       const email = input.email.trim().toLowerCase();
@@ -44,9 +96,12 @@ export function useInviteFamily() {
           },
         },
       );
-      if (error) throw error;
+      if (error) throw new Error(await inviteErrorMessage(error));
       if (!data) throw new Error('Resposta vazia da função de convite.');
       return data;
+    },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['family-has-primary', result.family_id] });
     },
   });
 }

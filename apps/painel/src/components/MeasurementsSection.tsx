@@ -1,13 +1,31 @@
 // Histórico de medições de uma criança. Apenas EXIBE os dados (ANVISA):
 // nenhuma cor semafórica, seta, média, percentil ou faixa-alvo. A única
 // interpretação é o campo `status` (digitado pela médica) e o doctor_note.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { useMeasurements } from '@/hooks/useMeasurements';
+import { useDeleteMeasurement, useMeasurements } from '@/hooks/useMeasurements';
+import { toPtBr } from '@/lib/errors';
 import { CLINICAL_STATUS_LABELS, fmtDate, fmtNumber } from '@/lib/labels';
 
 export function MeasurementsSection({ childId }: { childId: string }) {
   const { data: measurements, isLoading, error } = useMeasurements(childId);
+  const deleteMeasurement = useDeleteMeasurement(childId);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function handleDelete(id: string, measuredOn: string) {
+    if (
+      !window.confirm(
+        `Excluir a medição de ${fmtDate(measuredOn)}? Ela some também do app da família.`,
+      )
+    ) {
+      return;
+    }
+    setActionError(null);
+    deleteMeasurement.mutate(id, {
+      onError: (err) => setActionError(toPtBr(err, 'Não foi possível excluir a medição.')),
+    });
+  }
 
   return (
     <section>
@@ -17,7 +35,7 @@ export function MeasurementsSection({ childId }: { childId: string }) {
       </p>
 
       {isLoading ? <p>Carregando...</p> : null}
-      {error ? <p className="error">Erro: {(error as Error).message}</p> : null}
+      {error ? <p className="error">Erro: {toPtBr(error)}</p> : null}
 
       {measurements && measurements.length > 0 ? (
         <table>
@@ -34,6 +52,7 @@ export function MeasurementsSection({ childId }: { childId: string }) {
               <th>OE axial (mm)</th>
               <th>Avaliação (médica)</th>
               <th>Recado</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -50,6 +69,16 @@ export function MeasurementsSection({ childId }: { childId: string }) {
                 <td>{fmtNumber(m.oe_axial_mm)}</td>
                 <td>{CLINICAL_STATUS_LABELS[m.status]}</td>
                 <td>{m.doctor_note ?? '—'}</td>
+                <td>
+                  <Link to={`/criancas/${childId}/medicoes/${m.id}/editar`}>Editar</Link>{' '}
+                  <button
+                    type="button"
+                    disabled={deleteMeasurement.isPending}
+                    onClick={() => handleDelete(m.id, m.measured_on)}
+                  >
+                    Excluir
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -57,6 +86,7 @@ export function MeasurementsSection({ childId }: { childId: string }) {
       ) : (
         <p className="muted">Nenhuma medição registrada.</p>
       )}
+      {actionError ? <p className="error">{actionError}</p> : null}
       <p className="muted">
         EE = equivalente esférico (esfera + cilindro/2), calculado pelo banco.
         Apenas exibido.

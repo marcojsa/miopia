@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Treatment, TreatmentInsert } from '@/types/database';
 import { useAuth } from '@/auth/AuthContext';
+import { todayISO } from '@/lib/labels';
 
 function treatmentsKey(childId: string) {
   return ['treatments', childId] as const;
@@ -42,7 +43,7 @@ export function useCreateTreatment(childId: string) {
         instructions: input.instructions?.trim() || null,
         suggested_time: input.suggested_time || null,
         days_of_week: input.days_of_week ?? [0, 1, 2, 3, 4, 5, 6],
-        starts_on: input.starts_on || new Date().toISOString().slice(0, 10),
+        starts_on: input.starts_on || todayISO(),
         ends_on: input.ends_on || null,
         active: input.active ?? true,
         created_by: session?.user.id ?? null,
@@ -70,7 +71,7 @@ export function useEndTreatment(childId: string) {
     mutationFn: async (treatmentId: string): Promise<void> => {
       const { error } = await supabase
         .from('treatments')
-        .update({ active: false, ends_on: new Date().toISOString().slice(0, 10) })
+        .update({ active: false, ends_on: todayISO() })
         .eq('id', treatmentId);
       if (error) throw error;
     },

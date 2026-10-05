@@ -5,6 +5,7 @@ export {
   ageLabel,
   regimeLabel,
   regimeSummary,
+  reminderTimeLabel,
   formatTimePtBR,
   parseHM,
   toReminderTimeString,

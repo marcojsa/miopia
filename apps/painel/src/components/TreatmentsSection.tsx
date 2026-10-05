@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { useCreateTreatment, useEndTreatment, useTreatments } from '@/hooks/useTreatments';
 import type { TreatmentType } from '@/types/database';
+import { errorCode, toPtBr } from '@/lib/errors';
 import { TREATMENT_TYPE_LABELS, WEEKDAY_LABELS, fmtDate, todayISO } from '@/lib/labels';
 
 const TREATMENT_TYPES: TreatmentType[] = ['atropina', 'ortho_k', 'oculos_lentes'];
@@ -19,6 +20,21 @@ export function TreatmentsSection({ childId }: { childId: string }) {
   const [days, setDays] = useState<number[]>(ALL_DAYS);
   const [startsOn, setStartsOn] = useState(todayISO());
   const [formError, setFormError] = useState<string | null>(null);
+  const [endError, setEndError] = useState<string | null>(null);
+
+  function handleEnd(treatmentId: string) {
+    if (
+      !window.confirm(
+        'Encerrar este tratamento? O app da família deixa de mostrá-lo a partir de hoje.',
+      )
+    ) {
+      return;
+    }
+    setEndError(null);
+    endTreatment.mutate(treatmentId, {
+      onError: (err) => setEndError(toPtBr(err, 'Não foi possível encerrar o tratamento.')),
+    });
+  }
 
   function toggleDay(day: number) {
     setDays((prev) =>
@@ -45,11 +61,10 @@ export function TreatmentsSection({ childId }: { childId: string }) {
       setType('atropina');
     } catch (err) {
       // Constraint uq_treatment_active: já existe um tratamento ativo desse tipo.
-      const message = err instanceof Error ? err.message : 'Erro ao criar tratamento.';
       setFormError(
-        /duplicate|unique|23505/i.test(message)
+        errorCode(err) === '23505'
           ? `Já existe um tratamento ativo de ${TREATMENT_TYPE_LABELS[type]} para esta criança. Encerre o atual antes de criar outro.`
-          : message,
+          : toPtBr(err, 'Erro ao criar tratamento.'),
       );
     }
   }
@@ -59,7 +74,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
       <h3>Tratamentos</h3>
 
       {isLoading ? <p>Carregando...</p> : null}
-      {error ? <p className="error">Erro: {(error as Error).message}</p> : null}
+      {error ? <p className="error">Erro: {toPtBr(error)}</p> : null}
 
       {treatments && treatments.length > 0 ? (
         <table>
@@ -90,7 +105,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
                     <button
                       type="button"
                       disabled={endTreatment.isPending}
-                      onClick={() => void endTreatment.mutateAsync(t.id)}
+                      onClick={() => handleEnd(t.id)}
                     >
                       Encerrar
                     </button>
@@ -105,6 +120,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
       ) : (
         <p className="muted">Nenhum tratamento cadastrado.</p>
       )}
+      {endError ? <p className="error">{endError}</p> : null}
 
       <h4>Novo tratamento</h4>
       <form onSubmit={handleCreate}>

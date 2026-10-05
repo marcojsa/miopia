@@ -36,6 +36,16 @@ export function fmtDate(iso: string | null | undefined): string {
   return iso;
 }
 
+// Data de hoje no fuso do navegador (toISOString seria UTC: depois das 21h em
+// Brasília já devolveria o dia seguinte).
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Para colunas timestamptz (ex.: created_at): converte para o dia local.
+export function fmtTimestampDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR');
 }

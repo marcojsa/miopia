@@ -1,10 +1,12 @@
 // Entrar: e-mail + senha (conta criada pela clínica, por convite — signup
 // desabilitado). Header roxo compacto (gradiente da Hoje) sobre fundo claro.
 // Erros do Supabase viram mensagens amigáveis em pt-BR; "Esqueci minha senha"
-// usa supabase.auth.resetPasswordForEmail com feedback inline.
+// usa supabase.auth.resetPasswordForEmail com feedback inline; o link do e-mail
+// abre app/recuperar-senha.tsx.
 // Após o login o redirect é automático: o guard do (auth)/_layout observa a
 // sessão e leva ao app — esta tela não navega por conta própria.
 import type { AuthError } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -116,7 +118,10 @@ export default function SignInScreen() {
     }
     setSendingReset(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmed);
+      // Sem redirectTo o GoTrue manda para o site_url (painel da clínica).
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: Linking.createURL('recuperar-senha'),
+      });
       if (error) {
         setStatus({
           kind: 'error',

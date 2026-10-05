@@ -8,6 +8,7 @@ import Svg, { Circle, Path, Polygon } from 'react-native-svg';
 
 import { StarIcon } from '@/components/icons';
 import { AppText } from '@/components/ui';
+import { faltamNoites } from '@/lib/gamification';
 import { colors, fonts, spacing } from '@/theme/tokens';
 
 const STAR_POINTS =
@@ -88,10 +89,6 @@ const SPECS: readonly CardSpec[] = [
   },
 ];
 
-function nightWord(n: number): string {
-  return n === 1 ? 'noite' : 'noites';
-}
-
 export function MilestoneCards({
   totalNights,
   nextMilestone,
@@ -105,7 +102,7 @@ export function MilestoneCards({
         let text: string;
         if (achieved) text = spec.doneText;
         else if (inProgress)
-          text = `${spec.inProgressName}. Faltam ${nightsToNextMilestone} ${nightWord(nightsToNextMilestone)}!`;
+          text = `${spec.inProgressName}. ${faltamNoites(nightsToNextMilestone)}!`;
         else text = spec.lockedText;
 
         return (

@@ -21,7 +21,7 @@ max_rows = 1000
 # without explicit GRANTs. Leave unset today to preserve local behaviour. The implicit default
 # flips to `false` on 2026-05-30 to match the new cloud default, and the field is removed in
 # 2026-10-30 once the always-revoked behaviour is permanent. Set to `false` to opt in early.
-# auto_expose_new_tables = false
+auto_expose_new_tables = false
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
@@ -170,7 +170,16 @@ site_url = "http://127.0.0.1:5173"
 #   * http://127.0.0.1:5173 — painel da clínica em dev (login staff)
 #   * miopia://convite — deep link PLACEHOLDER do aceite de convite no app Expo
 #     (usado pela edge function invite-family; trocar pelo scheme definitivo na Fase 4)
-additional_redirect_urls = ["http://127.0.0.1:5173", "miopia://convite"]
+#   * miopia://recuperar-senha — "Esqueci minha senha" do app (app/recuperar-senha.tsx)
+#   * http://127.0.0.1:8081/convite e /recuperar-senha — o app no navegador (testes automatizados)
+# Na nuvem, cadastrar as mesmas URLs em Authentication > URL Configuration > Redirect URLs.
+additional_redirect_urls = [
+  "http://127.0.0.1:5173",
+  "miopia://convite",
+  "miopia://recuperar-senha",
+  "http://127.0.0.1:8081/convite",
+  "http://127.0.0.1:8081/recuperar-senha",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

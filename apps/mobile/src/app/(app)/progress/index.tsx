@@ -34,7 +34,7 @@ export default function ProgressIndexScreen() {
     );
   }
 
-  if (childrenQuery.isError) {
+  if (childrenQuery.isError && childrenQuery.data === undefined) {
     return (
       <Screen>
         <View style={styles.centered}>
@@ -90,12 +90,14 @@ export default function ProgressIndexScreen() {
         </AppText>
 
         {children.map((child) => {
-          const treatment = treatments.find((t) => t.child_id === child.id);
+          const labels = treatments
+            .filter((t) => t.child_id === child.id)
+            .map((t) => regimeLabel(t.type));
           return (
             <View key={child.id} style={styles.cardWrap}>
               <ChildSelectorCard
                 child={child}
-                regimeLabel={treatment ? regimeLabel(treatment.type) : undefined}
+                regimeLabel={labels.length > 0 ? labels.join(' · ') : undefined}
                 onPress={() => handleSelect(child.id)}
               />
             </View>

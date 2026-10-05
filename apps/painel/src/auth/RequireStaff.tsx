@@ -4,6 +4,7 @@
 //  - sessão mas não-staff  → tela de bloqueio explícita (com logout), porque a
 //                            conta existe (pode ser um responsável tentando
 //                            entrar no painel) mas não tem perfil de clínica.
+//  - falha de rede        → "Sem conexão" com tentar de novo (não é falta de perfil);
 //  - resolvendo            → estado de carregamento.
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -11,7 +12,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 
 export function RequireStaff({ children }: { children: ReactNode }) {
-  const { session, staff, isLoading, signOut } = useAuth();
+  const { session, staff, staffError, isLoading, signOut, retryStaff } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -20,6 +21,24 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 
   if (!session) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (staffError && !staff) {
+    return (
+      <main>
+        <h1>Sem conexão</h1>
+        <p>
+          Não foi possível conectar ao servidor para confirmar o seu acesso.
+          Verifique a conexão e tente novamente.
+        </p>
+        <button type="button" onClick={retryStaff}>
+          Tentar de novo
+        </button>{' '}
+        <button type="button" onClick={() => void signOut()}>
+          Sair
+        </button>
+      </main>
+    );
   }
 
   if (!staff) {

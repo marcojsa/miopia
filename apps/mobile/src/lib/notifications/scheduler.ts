@@ -1,88 +1,19 @@
 // Reconciliação DECLARATIVA dos lembretes locais (design-mobile §multi-filho).
-// - Triggers diários repetitivos (1 slot iOS permanente; pior caso 9 de 64).
-// - Identifier determinístico `${childId}:${tipo}` => cancelar/reagendar é idempotente.
+// - Triggers repetitivos: diário quando a prescrição é todo dia; um semanal por dia
+//   quando days_of_week é restrito (pior caso iOS: 2 filhos x 3 tipos x 7 = 42 de 64).
+// - Identifier determinístico `${childId}:${tipo}[:dia]` => cancelar/reagendar é idempotente.
 // - TODA mudança (novo filho, horário, pausa, troca de regime) passa por
 //   syncSchedulesForFamily(): compara desejado vs pendente e aplica só o delta.
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import type { ChildScheduleInput, ReminderType } from '../../types/domain';
+import type { ChildScheduleInput } from '../../types/domain';
+import { localDateString } from '../date';
 import { REMINDER_CHANNEL_ID } from './channels';
 import { CHECKIN_CATEGORY_ID } from './categories';
+import { buildDesired, type DesiredSchedule } from './schedulePlan';
 
-export function notifId(childId: string, type: ReminderType): string {
-  return `${childId}:${type}`;
-}
-
-export function parseNotifId(id: string): { childId: string; type: ReminderType } | null {
-  const sep = id.lastIndexOf(':');
-  if (sep <= 0) return null;
-  const childId = id.slice(0, sep);
-  const type = id.slice(sep + 1);
-  if (type !== 'atropina' && type !== 'orthok_on' && type !== 'orthok_off') return null;
-  return { childId, type };
-}
-
-// Conteúdo ESTÁTICO de propósito (trigger repetitivo não muda texto);
-// celebração dinâmica fica na tela Hoje.
-const COPY: Record<ReminderType, (firstName: string) => { title: string; body: string }> = {
-  atropina: (n) => ({
-    title: `Hora do colírio — ${n}`,
-    body: 'Pingar a atropina antes de dormir. Toque em Feito quando aplicar.',
-  }),
-  orthok_on: (n) => ({
-    title: `Hora da lente — ${n}`,
-    body: 'Colocar a lente de ortho-k antes de dormir.',
-  }),
-  orthok_off: (n) => ({
-    title: `Retirar a lente — ${n}`,
-    body: 'Bom dia! Hora de retirar a lente de ortho-k.',
-  }),
-};
-
-interface DesiredSchedule {
-  childId: string;
-  treatmentId: string;
-  type: ReminderType;
-  title: string;
-  body: string;
-  hour: number;
-  minute: number;
-}
-
-function buildDesired(children: ChildScheduleInput[]): Map<string, DesiredSchedule> {
-  const desired = new Map<string, DesiredSchedule>();
-  for (const c of children) {
-    if (c.remindersPaused) continue; // férias/doença: zero lembretes deste filho
-
-    if (c.atropina) {
-      desired.set(notifId(c.childId, 'atropina'), {
-        childId: c.childId,
-        treatmentId: c.atropina.treatmentId,
-        type: 'atropina',
-        ...COPY.atropina(c.firstName),
-        ...c.atropina.time,
-      });
-    }
-    if (c.orthok) {
-      desired.set(notifId(c.childId, 'orthok_on'), {
-        childId: c.childId,
-        treatmentId: c.orthok.treatmentId,
-        type: 'orthok_on',
-        ...COPY.orthok_on(c.firstName),
-        ...c.orthok.onTime,
-      });
-      desired.set(notifId(c.childId, 'orthok_off'), {
-        childId: c.childId,
-        treatmentId: c.orthok.treatmentId,
-        type: 'orthok_off',
-        ...COPY.orthok_off(c.firstName),
-        ...c.orthok.offTime,
-      });
-    }
-  }
-  return desired;
-}
+export { notifId, parseNotifId } from './schedulePlan';
 
 /** Extrai hora/minuto de um trigger pendente (shape difere entre Android e iOS). */
 function triggerTime(trigger: unknown): { hour: number; minute: number } | null {
@@ -109,6 +40,8 @@ function alreadyScheduled(
   const time = triggerTime(p.trigger);
   if (!time || time.hour !== d.hour || time.minute !== d.minute) return false;
   if (p.content.title !== d.title || p.content.body !== d.body) return false;
+  const category = d.withCheckinActions ? CHECKIN_CATEGORY_ID : null;
+  if ((p.content.categoryIdentifier ?? null) !== category) return false;
   if (p.content.data?.treatmentId !== d.treatmentId) return false;
   return true;
 }
@@ -120,7 +53,7 @@ function alreadyScheduled(
  */
 export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Promise<void> {
   if (Platform.OS === 'web') return; // sem notificações no navegador (só testes)
-  const desired = buildDesired(children);
+  const desired = buildDesired(children, localDateString());
 
   // Estado ATUAL no SO
   const pending = await Notifications.getAllScheduledNotificationsAsync();
@@ -142,7 +75,8 @@ export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Pr
       content: {
         title: d.title,
         body: d.body,
-        categoryIdentifier: CHECKIN_CATEGORY_ID, // botões Feito / Pular hoje
+        // Botões Feito / Pular hoje só à noite: a retirada da manhã não registra a noite.
+        ...(d.withCheckinActions ? { categoryIdentifier: CHECKIN_CATEGORY_ID } : {}),
         data: {
           childId: d.childId,
           type: d.type,
@@ -154,14 +88,24 @@ export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Pr
         // (passado ao UNMutableNotificationContent; fora do tipo de input do expo-notifications)
         ...(Platform.OS === 'ios' ? { threadIdentifier: d.childId } : {}),
       },
-      trigger: {
-        // DAILY repetitivo = 1 slot iOS permanente; alarme INEXATO no Android
-        // (sem SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM — risco de rejeição no Play).
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: d.hour,
-        minute: d.minute,
-        channelId: REMINDER_CHANNEL_ID, // Android: channelId vai NO TRIGGER
-      },
+      // Repetitivo = 1 slot iOS permanente; alarme INEXATO no Android
+      // (sem SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM — risco de rejeição no Play).
+      // Android: channelId vai NO TRIGGER.
+      trigger:
+        d.weekday === null
+          ? {
+              type: Notifications.SchedulableTriggerInputTypes.DAILY,
+              hour: d.hour,
+              minute: d.minute,
+              channelId: REMINDER_CHANNEL_ID,
+            }
+          : {
+              type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+              weekday: d.weekday + 1, // expo: 1 = domingo
+              hour: d.hour,
+              minute: d.minute,
+              channelId: REMINDER_CHANNEL_ID,
+            },
     });
   }
 }

@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { CloudIcon, ShieldIcon, StarIcon, type StarIconVariant } from '@/components/icons';
 import { AppText, Card } from '@/components/ui';
 import { colors, fonts, spacing } from '@/theme/tokens';
-import type { WeekDay, WeekDayState } from '@/lib/gamification';
+import { MILESTONE_LABEL, faltamNoites, type WeekDay, type WeekDayState } from '@/lib/gamification';
 
 const WEEKDAY_LABELS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'] as const;
 
@@ -29,18 +29,13 @@ const STAR_FOR_STATE: Record<Exclude<WeekDayState, 'cloud'>, StarIconVariant> = 
   empty: 'empty',
   today_pending: 'today',
   future: 'empty',
+  off: 'empty',
 };
 
 function DayMark({ state }: { state: WeekDayState }) {
   if (state === 'cloud') return <CloudIcon size={20} />;
   return <StarIcon size={20} variant={STAR_FOR_STATE[state]} />;
 }
-
-const MILESTONE_LABEL: Record<7 | 30 | 90, string> = {
-  7: 'primeira constelação',
-  30: 'Constelação da Coruja',
-  90: 'Diploma do Cuidado',
-};
 
 function nightWord(n: number): string {
   return n === 1 ? 'noite' : 'noites';
@@ -58,7 +53,7 @@ export function WeekGoalCard({
   const a11yMilestone =
     nextMilestone === null
       ? 'Você completou o Diploma do Cuidado: 90 noites de cuidado.'
-      : `Faltam ${nightsToNextMilestone} ${nightWord(nightsToNextMilestone)} para a ${MILESTONE_LABEL[nextMilestone]}.`;
+      : `${faltamNoites(nightsToNextMilestone)} para ${MILESTONE_LABEL[nextMilestone]}.`;
 
   return (
     <Card>
@@ -112,7 +107,7 @@ export function WeekGoalCard({
         <AppText variant="meta" style={styles.metaText} accessibilityLabel={a11yMilestone}>
           {nextMilestone === null
             ? 'Diploma do Cuidado conquistado: 90 noites.'
-            : `Faltam ${nightsToNextMilestone} ${nightWord(nightsToNextMilestone)} para a ${MILESTONE_LABEL[nextMilestone]}`}
+            : `${faltamNoites(nightsToNextMilestone)} para ${MILESTONE_LABEL[nextMilestone]}`}
         </AppText>
       </View>
     </Card>

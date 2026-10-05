@@ -7,3 +7,4 @@ export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Pill, type PillProps } from './Pill';
 export { Screen, type ScreenProps } from './Screen';
 export { SectionHeader, type SectionHeaderProps } from './SectionHeader';
+export { BootScreen } from './BootScreen';

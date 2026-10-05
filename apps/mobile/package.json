@@ -48,7 +48,11 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test:date": "node --test src/lib/__tests__/date.test.ts"
+    "test:date": "node --test src/lib/__tests__/date.test.ts",
+    "test:outbox": "node --test src/lib/__tests__/outbox.test.ts",
+    "test:hoje": "node --test src/lib/__tests__/hojeHelpers.test.ts",
+    "test:gamification": "node --test src/lib/__tests__/gamification.test.ts",
+    "test:lembretes": "node --test src/lib/__tests__/schedulePlan.test.ts"
   },
   "private": true
 }

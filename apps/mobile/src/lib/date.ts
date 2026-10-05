@@ -23,3 +23,14 @@ export function formatLocalYMD(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+/** 'YYYY-MM-DD' -> Date local à meia-noite daquele dia (sem UTC). */
+export function parseLocalYMD(ymd: string): Date {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Dia da semana (0=domingo..6=sábado) de uma data 'YYYY-MM-DD', ex.: a data lógica da noite. */
+export function weekdayOfYMD(ymd: string): number {
+  return parseLocalYMD(ymd).getDay();
+}

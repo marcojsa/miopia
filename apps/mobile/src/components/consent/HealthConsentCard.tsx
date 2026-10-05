@@ -44,7 +44,7 @@ export function HealthConsentCard({ childFirstName, checked, onToggle }: HealthC
           </AppText>
           <AppText variant="meta" color={colors.ink2} style={styles.who}>
             Esta autorização é separada dos termos gerais e pode ser revogada a qualquer momento em
-            Mais › Privacidade.
+            Família › Conta e privacidade.
           </AppText>
         </View>
       </Pressable>

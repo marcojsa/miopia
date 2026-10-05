@@ -3,11 +3,13 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryKey,
   type UseMutationResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
 
-import { formatLocalYMD, localDateString } from '@/lib/date';
+import { upsertLocal } from '@/lib/adherenceCache';
+import { localDateString } from '@/lib/date';
 import { enqueueCheckin, flushOutbox, newClientId } from '@/lib/outbox';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
@@ -20,45 +22,58 @@ const LOG_COLUMNS = 'id, treatment_id, child_id, log_date, status, note, logged_
 
 /**
  * Check-ins de HOJE (data lógica com corte 04h) de TODOS os filhos da família.
- * É a fonte da tela Hoje: tarefa sem log = pendente. staleTime curto: o dado
- * do dia muda com o uso (e o useCheckinMutation atualiza este cache na hora).
+ * É a fonte da tela Hoje: tarefa sem log = pendente. A data entra na key: ao virar
+ * a noite (ou com o cache persistido de ontem) a query é outra, nunca a de ontem.
  */
-export function useTodayAdherence(): UseQueryResult<AdherenceLog[]> {
+export function useTodayAdherence(date: string = localDateString()): UseQueryResult<AdherenceLog[]> {
   return useQuery({
-    queryKey: queryKeys.adherenceToday,
+    queryKey: queryKeys.adherenceToday(date),
     staleTime: MINUTE,
     queryFn: async (): Promise<AdherenceLog[]> => {
       const { data, error } = await supabase
         .from('adherence_logs')
         .select(LOG_COLUMNS)
-        .eq('log_date', localDateString());
+        .eq('log_date', date);
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
+const PAGE_SIZE = 1000; // teto padrão de linhas por resposta do PostgREST
+
+/** `since` que traz o histórico inteiro da criança (céu, escudos e marcos). */
+export const ALL_HISTORY = '0001-01-01';
+
 /**
- * Histórico de adesão de UMA criança (padrão: últimos 120 dias — cobre o céu
- * do mês + simulação de escudos desde starts_on na janela do piloto).
+ * Histórico de adesão de UMA criança desde `since`. A gamificação usa
+ * ALL_HISTORY: trocar ou encerrar um tratamento cria outro starts_on, e cortar
+ * antes do primeiro log faria o total de noites e os marcos regredirem.
+ * `since` null = ainda não se sabe: espera.
  * Ordenado por log_date ASC (a gamificação caminha cronologicamente).
  */
-export function useAdherenceLogs(childId: string, sinceDays = 120): UseQueryResult<AdherenceLog[]> {
+export function useAdherenceLogs(childId: string, since: string | null): UseQueryResult<AdherenceLog[]> {
   return useQuery({
-    queryKey: queryKeys.adherenceByChild(childId),
-    enabled: childId.length > 0,
+    queryKey: [...queryKeys.adherenceByChild(childId), since],
+    enabled: childId.length > 0 && since !== null,
     staleTime: 5 * MINUTE,
     queryFn: async (): Promise<AdherenceLog[]> => {
-      const since = new Date();
-      since.setDate(since.getDate() - sinceDays);
-      const { data, error } = await supabase
-        .from('adherence_logs')
-        .select(LOG_COLUMNS)
-        .eq('child_id', childId)
-        .gte('log_date', formatLocalYMD(since))
-        .order('log_date', { ascending: true });
-      if (error) throw error;
-      return data ?? [];
+      if (since === null) return [];
+      const all: AdherenceLog[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from('adherence_logs')
+          .select(LOG_COLUMNS)
+          .eq('child_id', childId)
+          .gte('log_date', since)
+          .order('log_date', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        const page = data ?? [];
+        all.push(...page);
+        if (page.length < PAGE_SIZE) return all;
+      }
     },
   });
 }
@@ -68,30 +83,30 @@ export interface CheckinInput {
   childId: string;
   status: AdherenceStatus; // 'feito' | 'pulado'
   note?: string | null;
+  /** Correção de uma resposta já registrada hoje (sobrescreve no servidor). */
+  replace?: boolean;
 }
 
-function upsertLocal(
-  logs: AdherenceLog[] | undefined,
-  optimistic: AdherenceLog
-): AdherenceLog[] {
-  const rest = (logs ?? []).filter(
-    (l) => !(l.treatment_id === optimistic.treatment_id && l.log_date === optimistic.log_date)
-  );
-  return [...rest, optimistic];
+interface CheckinContext {
+  todayKey: QueryKey;
+  previousToday?: AdherenceLog[];
+  previousChild: Array<[QueryKey, AdherenceLog[] | undefined]>;
 }
 
 /**
  * Check-in outbox-first: grava no outbox local (nunca depende de rede),
  * tenta flush imediato e aplica OPTIMISTIC UPDATE nos caches de adesão
- * (['adherence','today'] e ['adherence', childId]) — a UI acende a estrela
- * na hora, mesmo offline. onSettled invalida o prefixo ['adherence'].
+ * (['adherence','today',data] e ['adherence', childId, desde]) — a UI acende a
+ * estrela na hora, mesmo offline. onSettled invalida o prefixo ['adherence'].
  */
-export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInput, { previousToday?: AdherenceLog[]; previousChild?: AdherenceLog[] }> {
+export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInput, CheckinContext> {
   const queryClient = useQueryClient();
   const { session } = useSession();
   const userId = session?.user.id ?? null;
 
   return useMutation({
+    // Outbox-first: roda mesmo offline (o onlineManager pausaria a mutation).
+    networkMode: 'always',
     mutationFn: async (input: CheckinInput): Promise<void> => {
       await enqueueCheckin({
         treatment_id: input.treatmentId,
@@ -100,16 +115,17 @@ export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInpu
         status: input.status,
         note: input.note ?? null,
         logged_by: userId,
+        replace: input.replace,
       });
       await flushOutbox(); // best-effort; offline fica na fila
     },
     onMutate: async (input) => {
-      const todayKey = queryKeys.adherenceToday;
-      const childKey = queryKeys.adherenceByChild(input.childId);
+      const todayKey = queryKeys.adherenceToday(localDateString());
+      const childPrefix = queryKeys.adherenceByChild(input.childId);
       await queryClient.cancelQueries({ queryKey: ['adherence'] });
 
       const previousToday = queryClient.getQueryData<AdherenceLog[]>(todayKey);
-      const previousChild = queryClient.getQueryData<AdherenceLog[]>(childKey);
+      const previousChild = queryClient.getQueriesData<AdherenceLog[]>({ queryKey: childPrefix });
 
       const optimistic: AdherenceLog = {
         id: `local-${newClientId()}`,
@@ -123,18 +139,19 @@ export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInpu
       };
 
       queryClient.setQueryData<AdherenceLog[]>(todayKey, (old) => upsertLocal(old, optimistic));
-      if (previousChild !== undefined) {
-        queryClient.setQueryData<AdherenceLog[]>(childKey, (old) => upsertLocal(old, optimistic));
-      }
-      return { previousToday, previousChild };
+      queryClient.setQueriesData<AdherenceLog[]>({ queryKey: childPrefix }, (old) =>
+        old === undefined ? old : upsertLocal(old, optimistic)
+      );
+      return { todayKey, previousToday, previousChild };
     },
-    onError: (_error, input, context) => {
+    onError: (_error, _input, context) => {
       // enqueueCheckin só falha se o AsyncStorage falhar — aí sim desfaz.
-      if (context?.previousToday !== undefined) {
-        queryClient.setQueryData(queryKeys.adherenceToday, context.previousToday);
+      if (!context) return;
+      if (context.previousToday !== undefined) {
+        queryClient.setQueryData(context.todayKey, context.previousToday);
       }
-      if (context?.previousChild !== undefined) {
-        queryClient.setQueryData(queryKeys.adherenceByChild(input.childId), context.previousChild);
+      for (const [key, data] of context.previousChild) {
+        if (data !== undefined) queryClient.setQueryData(key, data);
       }
     },
     onSettled: () => {

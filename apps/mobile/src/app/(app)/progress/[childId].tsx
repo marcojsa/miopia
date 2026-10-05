@@ -10,7 +10,7 @@
 // nenhum. A única leitura clínica é o texto da médica (sempre roxo neutro fixo).
 // Abre OFFLINE via cache TanStack persistido.
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -52,7 +52,11 @@ export default function ChildProgressScreen() {
     }
   }, [childId, queryClient]);
 
-  const canGoBack = router.canGoBack();
+  if (childrenQuery.data !== undefined && !child) {
+    return <Redirect href="/(app)/progress" />;
+  }
+
+  const canGoBack = (childrenQuery.data?.length ?? 0) > 1;
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
@@ -109,7 +113,13 @@ export default function ChildProgressScreen() {
             <AxialLengthCard />
           </View>
 
-          {measurementsQuery.isError ? (
+          {measurementsQuery.isRefetchError ? (
+            <AppText variant="meta" color={colors.ink2} style={styles.cardWrap}>
+              Sem conexão. Mostrando a última versão salva.
+            </AppText>
+          ) : null}
+
+          {measurementsQuery.isError && measurementsQuery.data === undefined ? (
             <EmptyState
               icon={<LumiOwl size={72} />}
               title="Não foi possível carregar as consultas"

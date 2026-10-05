@@ -7,6 +7,7 @@ import { useChildren, useCreateChild } from '@/hooks/useChildren';
 import { useFamily } from '@/hooks/useFamilies';
 import { TreatmentsSection } from '@/components/TreatmentsSection';
 import { MeasurementsSection } from '@/components/MeasurementsSection';
+import { toPtBr } from '@/lib/errors';
 import { fmtDate, todayISO } from '@/lib/labels';
 
 function NewChildForm({ familyId }: { familyId: string }) {
@@ -32,7 +33,7 @@ function NewChildForm({ familyId }: { familyId: string }) {
       setAvatarKey('');
       setChartRef('');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erro ao criar criança.');
+      setFormError(toPtBr(err, 'Erro ao criar criança.'));
     }
   }
 
@@ -102,7 +103,7 @@ export function FamilyDetailPage() {
 
       <h2>Crianças</h2>
       {isLoading ? <p>Carregando...</p> : null}
-      {error ? <p className="error">Erro ao carregar: {(error as Error).message}</p> : null}
+      {error ? <p className="error">Erro ao carregar: {toPtBr(error)}</p> : null}
       {children && children.length === 0 ? (
         <p className="muted">Nenhuma criança cadastrada nesta família.</p>
       ) : null}

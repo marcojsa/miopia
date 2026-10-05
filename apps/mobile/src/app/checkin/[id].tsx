@@ -22,11 +22,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { RequireSession } from '@/components/auth/RequireSession';
 import { CheckinSheet, StarCelebration } from '@/components/checkin';
 import { taskInstruction } from '@/components/hoje';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, Button, EmptyState, Screen } from '@/components/ui';
 import { useChildren, useCheckinMutation, useTodayAdherence, useTreatments } from '@/hooks';
+import { localDateString } from '@/lib/date';
 import { parseNotifId } from '@/lib/notifications/scheduler';
 import { colors, spacing } from '@/theme/tokens';
 import type { AdherenceStatus, ReminderType, Treatment } from '@/types/domain';
@@ -44,15 +46,23 @@ function treatmentMatchesReminder(t: Treatment, type: ReminderType): boolean {
 function sheetTitle(type: ReminderType, firstName: string): string {
   switch (type) {
     case 'atropina':
-      return `Hora da gotinha da ${firstName}`;
+      return `Hora da gotinha de ${firstName}`;
     case 'orthok_on':
-      return `Hora de colocar a lente da ${firstName}`;
+      return `Hora de colocar a lente de ${firstName}`;
     case 'orthok_off':
-      return `Bom dia! Hora de retirar a lente da ${firstName}`;
+      return `Bom dia! Hora de retirar a lente de ${firstName}`;
   }
 }
 
 export default function CheckinModalScreen() {
+  return (
+    <RequireSession>
+      <CheckinModalScreenContent />
+    </RequireSession>
+  );
+}
+
+function CheckinModalScreenContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -63,10 +73,15 @@ export default function CheckinModalScreen() {
 
   const childrenQuery = useChildren();
   const treatmentsQuery = useTreatments(childId || undefined);
-  const todayQuery = useTodayAdherence();
+  const today = localDateString();
+  const todayQuery = useTodayAdherence(today);
   const checkin = useCheckinMutation();
 
   const [celebrating, setCelebrating] = useState(false);
+  // A celebração com estrela é só para 'feito'; 'pulado' recebe só a mensagem.
+  const [celebratedStatus, setCelebratedStatus] = useState<AdherenceStatus>('feito');
+  // "Mudar resposta" a partir do estado "já registrada".
+  const [correcting, setCorrecting] = useState(false);
   // Mensagem da celebração (definida no momento do registro).
   const [celebrationMsg, setCelebrationMsg] = useState('');
   // Evita disparar dois registros (toque duplo / re-render).
@@ -90,14 +105,18 @@ export default function CheckinModalScreen() {
     [treatmentsQuery.data, type]
   );
 
-  // Já registrado hoje? (qualquer status conta como "respondido"). Não vale para
-  // orthok_off, que nunca grava log próprio.
-  const alreadyLoggedToday = useMemo(() => {
-    if (!treatment) return false;
-    return (todayQuery.data ?? []).some(
-      (log) => log.child_id === childId && log.treatment_id === treatment.id
+  // Log de hoje deste tratamento (qualquer status conta como "respondido"). Não
+  // vale para orthok_off, que nunca grava log próprio.
+  const todayLog = useMemo(() => {
+    if (!treatment) return null;
+    return (
+      (todayQuery.data ?? []).find(
+        (log) =>
+          log.child_id === childId && log.treatment_id === treatment.id && log.log_date === today
+      ) ?? null
     );
-  }, [todayQuery.data, childId, treatment]);
+  }, [todayQuery.data, childId, treatment, today]);
+  const alreadyLoggedToday = todayLog !== null && !correcting;
 
   // Auto-fecha depois da celebração.
   useEffect(() => {
@@ -120,8 +139,9 @@ export default function CheckinModalScreen() {
     setCelebrationMsg(
       status === 'feito' ? 'Noite de cuidado registrada!' : 'Tudo bem. Amanhã é um novo dia.'
     );
+    setCelebratedStatus(status);
     // Outbox-first + optimistic: a estrela pode acender já (não esperamos a rede).
-    checkin.mutate({ treatmentId: treatment.id, childId, status, note });
+    checkin.mutate({ treatmentId: treatment.id, childId, status, note, replace: todayLog !== null });
     setCelebrating(true);
   };
 
@@ -139,12 +159,17 @@ export default function CheckinModalScreen() {
     );
   }
 
-  // Celebração ocupa a tela inteira (some sozinha em ~1.2s).
+  // Celebração ocupa a tela inteira (some sozinha em ~1.2s). Noite pulada não
+  // acende estrela: só a mensagem acolhedora.
   if (celebrating) {
     return (
       <Screen>
         <View style={styles.centered}>
-          <StarCelebration message={celebrationMsg} />
+          {celebratedStatus === 'feito' ? (
+            <StarCelebration message={celebrationMsg} />
+          ) : (
+            <EmptyState icon={<LumiOwl size={72} />} title={celebrationMsg} />
+          )}
         </View>
       </Screen>
     );
@@ -215,8 +240,18 @@ export default function CheckinModalScreen() {
           <EmptyState
             icon={<LumiOwl size={72} />}
             title="A noite de hoje já está registrada."
-            message="Não precisa fazer nada agora. Que tal ver as estrelas no céu?"
+            message={
+              todayLog?.status === 'pulado'
+                ? 'Ficou registrado que hoje não foi possível. Se foi engano, dá para mudar a resposta.'
+                : 'Não precisa fazer nada agora. Que tal ver as estrelas no céu?'
+            }
             action={{ label: 'Fechar', onPress: close }}
+          />
+          <Button
+            label="Mudar resposta"
+            variant="ghost"
+            onPress={() => setCorrecting(true)}
+            style={styles.morningBtn}
           />
         </View>
       </Screen>

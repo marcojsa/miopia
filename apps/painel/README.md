@@ -48,6 +48,18 @@ npm run dev         # servidor de desenvolvimento (não rodar no CI)
   enviado.
 - **Convites** — chama a Edge Function `invite-family`.
 
+## Deploy
+
+O painel é uma SPA (`BrowserRouter`): o host precisa devolver `index.html` para
+qualquer rota, senão F5 ou link direto em `/familias/<id>` dá 404.
+
+- Netlify e Cloudflare Pages: `public/_redirects` (copiado para `dist/`).
+- Vercel: `vercel.json`.
+- Servidor próprio (nginx): `try_files $uri /index.html;`.
+
+O build falha se `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` não estiverem
+definidas (no `.env` ou nas variáveis do host).
+
 ## Notas
 
 - Tipos do banco escritos à mão em `src/types/database.ts` (sem Docker para

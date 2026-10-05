@@ -11,28 +11,52 @@
 // ANVISA RDC 657/2022: o painel apenas registra dados e a interpretação humana
 // (status). NÃO calcula risco, NÃO emite juízo. O EE (od_se/oe_se) é GENERATED
 // no banco — NÃO é enviado no insert. recorded_by = auth.uid() do staff logado.
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useChild } from '@/hooks/useChildren';
-import { useCreateMeasurement } from '@/hooks/useMeasurements';
+import {
+  useCreateMeasurement,
+  useMeasurements,
+  useUpdateMeasurement,
+} from '@/hooks/useMeasurements';
+import { errorCode, toPtBr } from '@/lib/errors';
 import {
   validateEye,
   type EyeParsed,
   type EyeValues,
 } from '@/lib/measurementValidation';
-import type { ClinicalStatus } from '@/types/database';
+import type { ClinicalStatus, Measurement } from '@/types/database';
 import { CLINICAL_STATUS_LABELS, fmtDate, fmtNumber, todayISO } from '@/lib/labels';
 
 const STATUSES: ClinicalStatus[] = ['sem_avaliacao', 'controle_adequado', 'atencao'];
 
 const EMPTY_EYE: EyeValues = { sphere: '', cylinder: '', axial: '' };
 
+function toField(value: number | null): string {
+  return value === null ? '' : String(value);
+}
+
+function eyeFrom(m: Measurement, eye: 'od' | 'oe'): EyeValues {
+  return {
+    sphere: toField(m[`${eye}_sphere`]),
+    cylinder: toField(m[`${eye}_cylinder`]),
+    axial: toField(m[`${eye}_axial_mm`]),
+  };
+}
+
 export function NewMeasurementPage() {
-  const { childId } = useParams<{ childId: string }>();
+  const { childId, measurementId } = useParams<{ childId: string; measurementId?: string }>();
+  const isEdit = !!measurementId;
   const navigate = useNavigate();
   const { data: child } = useChild(childId);
   const createMeasurement = useCreateMeasurement(childId ?? '');
+  const updateMeasurement = useUpdateMeasurement(childId ?? '');
+  const saving = createMeasurement.isPending || updateMeasurement.isPending;
+  const { data: measurements, isLoading: loadingExisting } = useMeasurements(
+    isEdit ? childId : undefined,
+  );
+  const existing = isEdit ? measurements?.find((m) => m.id === measurementId) : undefined;
 
   const [measuredOn, setMeasuredOn] = useState(todayISO());
   const [od, setOd] = useState<EyeValues>(EMPTY_EYE);
@@ -51,10 +75,34 @@ export function NewMeasurementPage() {
   const odField = useMemo(() => validateEye('Olho direito (OD)', od), [od]);
   const oeField = useMemo(() => validateEye('Olho esquerdo (OE)', oe), [oe]);
 
+  // Edição: preenche o formulário uma vez com os valores salvos.
+  const loadedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!existing || loadedFor.current === existing.id) return;
+    loadedFor.current = existing.id;
+    setMeasuredOn(existing.measured_on);
+    setOd(eyeFrom(existing, 'od'));
+    setOe(eyeFrom(existing, 'oe'));
+    setStatus(existing.status);
+    setDoctorNote(existing.doctor_note ?? '');
+  }, [existing]);
+
   if (!childId) {
     return (
       <main>
         <p className="error">Criança não informada.</p>
+      </main>
+    );
+  }
+
+  if (isEdit && !existing) {
+    return (
+      <main>
+        {loadingExisting ? (
+          <p>Carregando...</p>
+        ) : (
+          <p className="error">Medição não encontrada.</p>
+        )}
       </main>
     );
   }
@@ -65,6 +113,12 @@ export function NewMeasurementPage() {
     setSubmitError(null);
     const allErrors = [...odField.errors, ...oeField.errors];
     if (!measuredOn) allErrors.push('Informe a data da medição.');
+    const allEmpty = [odField.parsed, oeField.parsed].every(
+      (eye) => eye.sphere === null && eye.cylinder === null && eye.axial === null,
+    );
+    if (odField.errors.length === 0 && oeField.errors.length === 0 && allEmpty) {
+      allErrors.push('Preencha ao menos um valor de refração ou de comprimento axial.');
+    }
     setErrors(allErrors);
     if (allErrors.length > 0) {
       setPending(null);
@@ -77,33 +131,37 @@ export function NewMeasurementPage() {
   async function handleConfirm() {
     if (!pending) return;
     setSubmitError(null);
+    const values = {
+      measured_on: measuredOn,
+      od_sphere: pending.odParsed.sphere,
+      od_cylinder: pending.odParsed.cylinder,
+      od_axial_mm: pending.odParsed.axial,
+      oe_sphere: pending.oeParsed.sphere,
+      oe_cylinder: pending.oeParsed.cylinder,
+      oe_axial_mm: pending.oeParsed.axial,
+      status,
+      doctor_note: doctorNote.trim() || null,
+    };
     try {
-      await createMeasurement.mutateAsync({
-        measured_on: measuredOn,
-        od_sphere: pending.odParsed.sphere,
-        od_cylinder: pending.odParsed.cylinder,
-        od_axial_mm: pending.odParsed.axial,
-        oe_sphere: pending.oeParsed.sphere,
-        oe_cylinder: pending.oeParsed.cylinder,
-        oe_axial_mm: pending.oeParsed.axial,
-        status,
-        doctor_note: doctorNote.trim() || null,
-      });
+      if (existing) {
+        await updateMeasurement.mutateAsync({ id: existing.id, values });
+      } else {
+        await createMeasurement.mutateAsync(values);
+      }
       // Volta para o detalhe da família da criança.
       navigate(child ? `/familias/${child.family_id}` : '/familias', { replace: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao salvar a medição.';
       setSubmitError(
-        /duplicate|unique|23505/i.test(message)
-          ? 'Já existe uma medição para esta criança nesta data. Use outra data ou edite a existente.'
-          : message,
+        errorCode(err) === '23505'
+          ? 'Já existe uma medição desta criança nesta data. Volte à ficha da família e use "Editar" na linha dessa medição.'
+          : toPtBr(err, 'Erro ao salvar a medição.'),
       );
     }
   }
 
   return (
     <main>
-      <h1>Nova medição</h1>
+      <h1>{isEdit ? 'Editar medição' : 'Nova medição'}</h1>
       <p className="muted">
         Criança: {child ? child.first_name : '...'}
         {child ? ` (nasc. ${fmtDate(child.birth_date)})` : ''}
@@ -211,12 +269,12 @@ export function NewMeasurementPage() {
 
           {submitError ? <p className="error">{submitError}</p> : null}
 
-          <button type="button" disabled={createMeasurement.isPending} onClick={() => void handleConfirm()}>
-            {createMeasurement.isPending ? 'Salvando...' : 'Confirmar e salvar'}
+          <button type="button" disabled={saving} onClick={() => void handleConfirm()}>
+            {saving ? 'Salvando...' : 'Confirmar e salvar'}
           </button>{' '}
           <button
             type="button"
-            disabled={createMeasurement.isPending}
+            disabled={saving}
             onClick={() => setPending(null)}
           >
             Voltar e editar

@@ -10,9 +10,13 @@ import {
   computeSky,
   computeStreakAndMilestones,
   computeWeek,
+  datesBetween,
+  faltamNoites,
+  MILESTONE_LABEL,
   mondayOf,
   type GamificationLog,
 } from '../gamification.ts';
+import { layoutSky } from '../../components/ceu/skyLayout.ts';
 
 const START = '2026-06-01';
 
@@ -153,4 +157,74 @@ test('prateada conta para a meta semanal (escudo salva a noite)', () => {
   assert.equal(week.days[0].state, 'silver');
   assert.equal(week.completedNights, 5);
   assert.equal(week.metFiveOfSeven, true);
+});
+
+test('troca de regime (novo starts_on) não apaga as noites anteriores', () => {
+  const logs = feitoOn(range(1, 14));
+  const shields = computeShields(logs, [], '2026-06-15', '2026-06-10');
+  assert.equal(shields.totalNights, 14);
+  const sky = computeSky(logs, [], '2026-06', '2026-06-10', '2026-06-15');
+  assert.equal(sky[0].state, 'gold');
+  const m = computeStreakAndMilestones(logs, [], '2026-06-15', '2026-06-10');
+  assert.equal(m.totalCompleteNights, 14);
+});
+
+test('noite sem cuidado programado (seg-sex) não consome escudo', () => {
+  // 01/06/2026 é segunda. Dias úteis 1-5 e 8-12 feitos; sáb/dom 13-14 sem log.
+  const logs = feitoOn([...range(1, 5), ...range(8, 12)]);
+  const isDue = (d: string) => {
+    const [y, mo, da] = d.split('-').map(Number);
+    const dow = new Date(y, mo - 1, da).getDay();
+    return dow >= 1 && dow <= 5;
+  };
+  const semRegra = computeShields(logs, [], '2026-06-15', START);
+  assert.equal(semRegra.available, 0);
+  const comRegra = computeShields(logs, [], '2026-06-15', START, isDue);
+  assert.equal(comRegra.available, 1);
+  assert.equal(comRegra.totalNights, 10);
+  const sky = computeSky(logs, [], '2026-06', START, '2026-06-15', isDue);
+  assert.equal(sky[12].state, 'off');
+  assert.equal(sky[13].state, 'off');
+});
+
+test('concordância de "falta(m) N noite(s)" e artigo do marco', () => {
+  assert.equal(faltamNoites(1), 'Falta 1 noite');
+  assert.equal(faltamNoites(2), 'Faltam 2 noites');
+  assert.equal(faltamNoites(1, true), 'Falta só 1 noite');
+  assert.equal(faltamNoites(3, true), 'Faltam só 3 noites');
+  assert.equal(`para ${MILESTONE_LABEL[90]}`, 'para o Diploma do Cuidado');
+  assert.equal(`para ${MILESTONE_LABEL[30]}`, 'para a Constelação da Coruja');
+});
+
+test('pausa de férias: todas as noites do intervalo viram nuvem', () => {
+  const dias = datesBetween('2026-06-05', '2026-06-14');
+  assert.equal(dias.length, 10);
+  assert.equal(dias[0], '2026-06-05');
+  assert.equal(dias[9], '2026-06-14');
+  const logs = feitoOn(range(1, 4));
+  const sky = computeSky(logs, dias, '2026-06', START, '2026-06-15');
+  assert.ok(sky.slice(4, 14).every((d) => d.state === 'cloud'));
+});
+
+test('céu de mês cheio: estrelas vizinhas não se sobrepõem', () => {
+  for (let m = 1; m <= 12; m++) {
+    const ym = `2026-${String(m).padStart(2, '0')}`;
+    const last = new Date(2026, m, 0).getDate();
+    const today = `${ym}-${String(last).padStart(2, '0')}`;
+    const days = computeSky(
+      feitoOn([]),
+      [],
+      ym,
+      `${ym}-01`,
+      today
+    );
+    const marks = layoutSky(days, today);
+    assert.equal(marks.length, last);
+    for (let i = 0; i < marks.length; i++) {
+      for (let j = i + 1; j < marks.length; j++) {
+        const dist = Math.hypot(marks[i].cx - marks[j].cx, marks[i].cy - marks[j].cy);
+        assert.ok(dist >= 25.9, `${ym}: dias ${marks[i].day} e ${marks[j].day} a ${dist.toFixed(1)}`);
+      }
+    }
+  }
 });

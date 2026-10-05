@@ -6,7 +6,7 @@
 // Uma criança por vez; ao autorizar todas -> router.replace('/'). Erros em pt-BR.
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -34,7 +34,8 @@ import {
 } from '@/components/consent';
 import { CheckIcon, ChevronIcon } from '@/components/icons';
 import { AppText, Button, Screen } from '@/components/ui';
-import { useChildren } from '@/hooks';
+import { useChildren, type ConsentPendingResult } from '@/hooks';
+import { queryKeys } from '@/hooks/keys';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
 import { colors, fonts, gradients, radii, spacing } from '@/theme/tokens';
@@ -82,7 +83,7 @@ const LAYERS: readonly { key: string; title: string; body: string }[] = [
   {
     key: 'rights',
     title: 'Seus direitos',
-    body: 'Você pode acessar, corrigir e retirar esta autorização a qualquer momento, sem perder o histórico já registrado pela clínica. É só ir em Mais › Privacidade ou falar com a recepção.',
+    body: 'Você pode acessar, corrigir e retirar esta autorização a qualquer momento, sem perder o histórico já registrado pela clínica. É só ir em Família › Conta e privacidade ou falar com a recepção.',
   },
 ];
 
@@ -203,14 +204,26 @@ export default function ConsentScreen() {
     };
   }, [userId, childrenQuery.data]);
 
+  // Grava direto no cache do gate de (app)/_layout que não há pendência: a query
+  // está sem observador aqui (o grupo (app) foi desmontado pelo Redirect), então
+  // invalidar não refaz nada e o gate leria o { pending: true } antigo e voltaria
+  // para cá. A revalidação no servidor fica para o próximo mount (stale).
+  const releaseApp = useCallback((): void => {
+    const childIds = (childrenQuery.data ?? []).map((c) => c.id);
+    queryClient.setQueryData<ConsentPendingResult>(queryKeys.consentPending(userId, childIds), {
+      pending: false,
+      pendingChildren: [],
+    });
+    void queryClient.invalidateQueries({ queryKey: ['consent-pending'], refetchType: 'none' });
+    router.replace('/');
+  }, [childrenQuery.data, queryClient, router, userId]);
+
   // Sem pendência -> já consentiu tudo: vai direto ao app.
   useEffect(() => {
     if (bootstrapped && !loadingTerm && term && pendingChildren.length === 0 && !status) {
-      // Revalida o gate de (app)/_layout antes de sair (evita bounce de volta).
-      void queryClient.invalidateQueries({ queryKey: ['consent-pending'] });
-      router.replace('/');
+      releaseApp();
     }
-  }, [bootstrapped, loadingTerm, term, pendingChildren.length, status, router, queryClient]);
+  }, [bootstrapped, loadingTerm, term, pendingChildren.length, status, releaseApp]);
 
   const currentChild = pendingChildren[currentIndex] ?? null;
   const needsGuardianName = !guardianKnown && currentIndex === 0;
@@ -254,9 +267,8 @@ export default function ConsentScreen() {
         setAcceptHealth(false);
         setShowFullTerm(false);
       } else {
-        // Último filho autorizado: revalida o gate antes de liberar as abas.
-        await queryClient.invalidateQueries({ queryKey: ['consent-pending'] });
-        router.replace('/');
+        // Último filho autorizado: libera as abas sem voltar a esta tela.
+        releaseApp();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message.toLowerCase() : '';

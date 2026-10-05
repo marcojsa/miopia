@@ -13,15 +13,19 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Sem as envs o painel não conecta — falhar cedo e claro em dev.
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[supabase] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY ausentes. Copie .env.example para .env.',
+  // O build já barra isso (vite.config.ts); aqui é a rede de segurança do dev.
+  throw new Error(
+    'Painel não configurado: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY ausentes. Copie .env.example para .env.',
   );
 }
 
+// Mesma chave que o supabase-js usaria por padrão; explícita para o logout
+// conseguir limpar a sessão local quando o servidor não responde.
+export const AUTH_STORAGE_KEY = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
+    storageKey: AUTH_STORAGE_KEY,
     // Painel roda em navegador desktop: persistir sessão e renovar token.
     persistSession: true,
     autoRefreshToken: true,

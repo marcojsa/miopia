@@ -75,7 +75,7 @@ export function regimeLabel(type: TreatmentType): string {
 
 /**
  * Rótulo TEXTUAL neutro do status clínico digitado pela médica.
- * 'sem_avaliacao' retorna null: o bloco de avaliação é OMITIDO nesse caso.
+ * 'sem_avaliacao' retorna null: omite apenas a linha de status; o recado, se houver, aparece.
  * NÃO há cor associada — o status é sempre exibido em tinta neutra/roxa.
  */
 export function clinicalStatusLabel(status: ClinicalStatus): string | null {

@@ -42,6 +42,7 @@ import {
   useReminderPrefs,
   useTreatments,
 } from '@/hooks';
+import { requestNotificationPermission } from '@/lib/notifications/permission';
 import { syncSchedulesForFamily } from '@/lib/notifications/scheduler';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
@@ -234,7 +235,16 @@ export default function RemindersScreen() {
       const schedule = buildFamilySchedule(allChildren, allTreatments, mergedPrefs, pausedSet);
       await syncSchedulesForFamily(schedule);
 
-      setStatus({ kind: 'info', text: 'Horários salvos. Os lembretes já valem a partir de hoje.' });
+      // Android 13+: sem a permissão o lembrete agendado não aparece.
+      const permission = await requestNotificationPermission();
+      setStatus(
+        permission.status === 'denied' || permission.status === 'undetermined'
+          ? {
+              kind: 'error',
+              text: 'Horários salvos, mas as notificações estão desligadas neste aparelho. Veja "Ajuda com notificações" na aba Família.',
+            }
+          : { kind: 'info', text: 'Horários salvos. Os lembretes já valem a partir de hoje.' }
+      );
     } catch {
       setStatus({
         kind: 'error',

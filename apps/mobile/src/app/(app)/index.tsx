@@ -7,19 +7,20 @@
 // medida (ANVISA RDC 657/2022). Verde só no botão Feito; amarelo-estrela só em
 // estrelas/escudos/marcos. Gamificação celebra ADESÃO, nunca resultado clínico.
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { reminderTimeLabel } from '@/components/familia/familiaHelpers';
 import {
   GreetingHeader,
   NightDoneCard,
   SkyTeaserCard,
   TaskCard,
   WeekGoalCard,
-  formatTimePtBR,
   greetingForHour,
+  isScheduledOn,
   isScheduledToday,
   longDatePtBR,
   taskInstruction,
@@ -27,19 +28,23 @@ import {
   type ChildChip,
 } from '@/components/hoje';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
-import { AppText, EmptyState, Screen, SectionHeader } from '@/components/ui';
+import { AppText, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import {
+  ALL_HISTORY,
   markTodayPausedIfNeeded,
   queryKeys,
   useAdherenceLogs,
   useChildren,
   useCheckinMutation,
+  useNotificationPermission,
   usePausedDates,
+  useReminderPrefs,
   useTodayAdherence,
   useTreatments,
 } from '@/hooks';
+import { requestNotificationPermission } from '@/lib/notifications/permission';
 import { flushOutbox } from '@/lib/outbox';
-import { localDateString } from '@/lib/date';
+import { localDateString, parseLocalYMD, weekdayOfYMD } from '@/lib/date';
 import {
   computeShields,
   computeStreakAndMilestones,
@@ -48,7 +53,7 @@ import {
 import { useSession } from '@/providers/auth';
 import { useUiStore } from '@/stores/ui';
 import { colors, spacing } from '@/theme/tokens';
-import type { AdherenceStatus, Treatment } from '@/types/domain';
+import type { AdherenceLog, AdherenceStatus, ReminderPref, Treatment } from '@/types/domain';
 
 // Nome de exibição do responsável (metadata da sessão) com fallback acolhedor.
 function displayNameOf(metadata: Record<string, unknown> | undefined): string {
@@ -59,11 +64,12 @@ function displayNameOf(metadata: Record<string, unknown> | undefined): string {
   return 'família';
 }
 
-// Subtítulo do chip do filho: tipo do 1º tratamento + horário (ex.: "colírio 20h30").
-function chipSubtitle(treatments: Treatment[]): string | null {
+// Subtítulo do chip do filho: tipo do 1º tratamento + horário do lembrete deste
+// aparelho (ex.: "colírio 20h30") — o mesmo horário em que a notificação toca.
+function chipSubtitle(treatments: Treatment[], prefs: ReminderPref[]): string | null {
   const t = treatments[0];
   if (!t) return null;
-  const time = formatTimePtBR(t.suggested_time);
+  const time = reminderTimeLabel(t, prefs);
   const word = t.type === 'ortho_k' ? 'lente' : t.type === 'atropina' ? 'colírio' : 'cuidado';
   return time ? `${word} ${time}` : word;
 }
@@ -77,17 +83,42 @@ export default function TodayScreen() {
   const activeChildId = useUiStore((s) => s.activeChildId);
   const setActiveChildId = useUiStore((s) => s.setActiveChildId);
 
+  // A aba fica montada entre noites: ao voltar ao app, re-renderiza para recalcular
+  // a data lógica (e com ela a key da query de hoje), a saudação e o dia da semana.
+  // Também ao voltar para a aba (focus), que não re-renderiza sozinho.
+  const [, setForegroundTick] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setForegroundTick((n) => n + 1);
+    });
+    return () => sub.remove();
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setForegroundTick((n) => n + 1);
+    }, [])
+  );
+
+  const now = new Date();
+  const today = localDateString(now);
+  // Dia da semana da NOITE exibida (data lógica, corte 04h), não do relógio:
+  // às 00h30 de sábado a noite ainda é a de sexta.
+  const weekday = weekdayOfYMD(today);
+
   const childrenQuery = useChildren();
   const allTreatmentsQuery = useTreatments(); // todos da família (para os subtítulos dos chips)
-  const todayQuery = useTodayAdherence();
+  const todayQuery = useTodayAdherence(today);
+  const prefsQuery = useReminderPrefs();
+  const notifications = useNotificationPermission();
 
   const childTreatmentsQuery = useTreatments(activeChildId ?? undefined);
-  const adherenceQuery = useAdherenceLogs(activeChildId ?? '');
   const pausedQuery = usePausedDates(activeChildId ?? '');
 
   const checkin = useCheckinMutation();
   // Tratamento cujo check-in está sincronizando (bloqueia só aquele card).
   const [busyTreatmentId, setBusyTreatmentId] = useState<string | null>(null);
+  // "Mudar resposta": reabre os cards da noite deste filho (chave filho:data).
+  const [correcting, setCorrecting] = useState<string | null>(null);
 
   const children = useMemo(() => childrenQuery.data ?? [], [childrenQuery.data]);
 
@@ -103,23 +134,20 @@ export default function TodayScreen() {
     if (activeChildId) void markTodayPausedIfNeeded(activeChildId);
   }, [activeChildId]);
 
-  const today = localDateString();
-  const now = useMemo(() => new Date(), []);
-  const weekday = now.getDay();
-
   const activeChild = useMemo(
     () => children.find((c) => c.id === activeChildId) ?? null,
     [children, activeChildId]
   );
 
   // Chips: cada filho + subtítulo do 1º tratamento (da query da família inteira).
+  const prefs = useMemo(() => prefsQuery.data ?? [], [prefsQuery.data]);
   const chips: ChildChip[] = useMemo(() => {
     const all = allTreatmentsQuery.data ?? [];
     return children.map((child) => ({
       child,
-      subtitle: chipSubtitle(all.filter((t) => t.child_id === child.id)),
+      subtitle: chipSubtitle(all.filter((t) => t.child_id === child.id), prefs),
     }));
-  }, [children, allTreatmentsQuery.data]);
+  }, [children, allTreatmentsQuery.data, prefs]);
 
   // Tratamentos do filho ativo agendados para hoje.
   const scheduledTreatments = useMemo(
@@ -129,20 +157,30 @@ export default function TodayScreen() {
   );
 
   // Logs de HOJE do filho ativo (qualquer status conta como "respondido").
-  const loggedTreatmentIds = useMemo(() => {
-    const ids = new Set<string>();
+  const todayLogs = useMemo(() => {
+    const byTreatment = new Map<string, AdherenceLog>();
     for (const log of todayQuery.data ?? []) {
-      if (log.child_id === activeChildId) ids.add(log.treatment_id);
+      if (log.child_id === activeChildId && log.log_date === today) {
+        byTreatment.set(log.treatment_id, log);
+      }
     }
-    return ids;
-  }, [todayQuery.data, activeChildId]);
+    return byTreatment;
+  }, [todayQuery.data, activeChildId, today]);
+
+  const isCorrecting = correcting === `${activeChildId ?? ''}:${today}`;
 
   const pendingTreatments = useMemo(
-    () => scheduledTreatments.filter((t) => !loggedTreatmentIds.has(t.id)),
-    [scheduledTreatments, loggedTreatmentIds]
+    () =>
+      isCorrecting
+        ? scheduledTreatments
+        : scheduledTreatments.filter((t) => !todayLogs.has(t.id)),
+    [scheduledTreatments, todayLogs, isCorrecting]
   );
 
-  const allDone = scheduledTreatments.length > 0 && pendingTreatments.length === 0;
+  const allAnswered = scheduledTreatments.length > 0 && pendingTreatments.length === 0;
+  // A estrela só acende se TODOS os cuidados da noite foram feitos.
+  const allFeito = allAnswered && scheduledTreatments.every((t) => todayLogs.get(t.id)?.status === 'feito');
+  const paused = pausedQuery.data?.paused === true;
 
   // Gamificação (adesão do filho ativo). starts_on = o mais antigo dos tratamentos
   // ativos, para a simulação cobrir todo o período de cuidado (bate com o céu).
@@ -152,20 +190,33 @@ export default function TodayScreen() {
     return list.reduce((min, t) => (t.starts_on < min ? t.starts_on : min), list[0].starts_on);
   }, [childTreatmentsQuery.data]);
 
+  // Histórico inteiro (a troca de regime não pode apagar as noites anteriores);
+  // espera os tratamentos, que dizem quais noites eram devidas.
+  const adherenceQuery = useAdherenceLogs(
+    activeChildId ?? '',
+    childTreatmentsQuery.data === undefined ? null : ALL_HISTORY
+  );
+
+  // Noite devida = algum tratamento ativo programado (dias da semana, ends_on).
+  const isDue = useMemo(() => {
+    const list = childTreatmentsQuery.data ?? [];
+    return (date: string) => list.some((t) => isScheduledOn(t, date));
+  }, [childTreatmentsQuery.data]);
+
   const logs = adherenceQuery.data ?? [];
   const pausedDates = pausedQuery.data?.pausedDates ?? [];
 
   const week = useMemo(
-    () => computeWeek(logs, pausedDates, today, startsOn),
-    [logs, pausedDates, today, startsOn]
+    () => computeWeek(logs, pausedDates, today, startsOn, isDue),
+    [logs, pausedDates, today, startsOn, isDue]
   );
   const shields = useMemo(
-    () => computeShields(logs, pausedDates, today, startsOn),
-    [logs, pausedDates, today, startsOn]
+    () => computeShields(logs, pausedDates, today, startsOn, isDue),
+    [logs, pausedDates, today, startsOn, isDue]
   );
   const milestones = useMemo(
-    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn),
-    [logs, pausedDates, today, startsOn]
+    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue),
+    [logs, pausedDates, today, startsOn, isDue]
   );
 
   const [refreshing, setRefreshing] = useState(false);
@@ -173,7 +224,6 @@ export default function TodayScreen() {
     setRefreshing(true);
     try {
       await flushOutbox();
-      // flushOutbox invalida a key legada ['adherence_logs']; invalidar a real aqui.
       await queryClient.invalidateQueries({ queryKey: ['adherence'] });
       await Promise.all([
         childrenQuery.refetch(),
@@ -185,11 +235,17 @@ export default function TodayScreen() {
     }
   };
 
-  const handleCheckin = (treatment: Treatment, status: AdherenceStatus): void => {
+  const handleCheckin = (
+    treatment: Treatment,
+    status: AdherenceStatus,
+    note: string | null = null
+  ): void => {
     if (!activeChildId) return;
+    const replace = todayLogs.has(treatment.id);
     setBusyTreatmentId(treatment.id);
+    setCorrecting(null);
     checkin.mutate(
-      { treatmentId: treatment.id, childId: activeChildId, status },
+      { treatmentId: treatment.id, childId: activeChildId, status, note, replace },
       { onSettled: () => setBusyTreatmentId((prev) => (prev === treatment.id ? null : prev)) }
     );
   };
@@ -205,7 +261,7 @@ export default function TodayScreen() {
     <GreetingHeader
       greeting={greeting}
       displayName={displayName}
-      longDate={longDatePtBR(now)}
+      longDate={longDatePtBR(parseLocalYMD(today))}
       chips={chips}
       activeChildId={activeChildId}
       onSelectChild={setActiveChildId}
@@ -256,6 +312,15 @@ export default function TodayScreen() {
   }
 
   const childName = activeChild?.first_name ?? '';
+  const notificationsOff =
+    notifications.permission?.status === 'denied' ||
+    (notifications.permission?.status === 'undetermined' && notifications.primerSeen);
+
+  const handleEnableNotifications = async (): Promise<void> => {
+    const result = await requestNotificationPermission();
+    await notifications.refresh();
+    if (result.status !== 'granted') router.push('/family/notifications-help');
+  };
 
   return (
     <Screen edges={['left', 'right']}>
@@ -274,22 +339,66 @@ export default function TodayScreen() {
           />
         }
       >
+        {notificationsOff ? (
+          <Pressable
+            onPress={() => {
+              void handleEnableNotifications();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Os lembretes estão desligados neste aparelho. Toque para ativar."
+          >
+            <Card style={styles.notificationsOff}>
+              <AppText variant="cardTitle">Os lembretes estão desligados</AppText>
+              <AppText variant="body" color={colors.ink2}>
+                Sem permissão de notificação, o aparelho não avisa na hora do cuidado. Toque para
+                ativar.
+              </AppText>
+            </Card>
+          </Pressable>
+        ) : null}
+
         <SectionHeader title="Esta noite" />
 
-        {pendingTreatments.map((t) => (
+        {paused && scheduledTreatments.length > 0 ? (
+          <EmptyState
+            icon={<LumiOwl size={72} />}
+            title={`${childName} está em pausa (férias)`}
+            message="Os lembretes estão pausados e a noite de hoje vira nuvem no céu. Não precisa marcar nada."
+            action={{
+              label: 'Retomar os cuidados',
+              onPress: () => {
+                if (activeChildId) {
+                  router.push({
+                    pathname: '/(app)/family/child/[childId]',
+                    params: { childId: activeChildId },
+                  });
+                }
+              },
+            }}
+            style={styles.noTasks}
+          />
+        ) : null}
+
+        {(paused ? [] : pendingTreatments).map((t) => (
           <TaskCard
             key={t.id}
             type={t.type}
             title={taskTitle(t.type, childName)}
             instruction={taskInstruction(t)}
-            time={formatTimePtBR(t.suggested_time)}
+            time={reminderTimeLabel(t, prefs)}
             busy={busyTreatmentId === t.id}
             onDone={() => handleCheckin(t, 'feito')}
-            onSkip={() => handleCheckin(t, 'pulado')}
+            onSkip={(note) => handleCheckin(t, 'pulado', note)}
           />
         ))}
 
-        {allDone ? <NightDoneCard childName={childName} /> : null}
+        {!paused && allAnswered ? (
+          <NightDoneCard
+            childName={childName}
+            variant={allFeito ? 'feito' : 'pulado'}
+            onChangeAnswer={() => setCorrecting(`${activeChildId ?? ''}:${today}`)}
+          />
+        ) : null}
 
         {scheduledTreatments.length === 0 ? (
           <EmptyState
@@ -337,5 +446,8 @@ const styles = StyleSheet.create({
   },
   noTasks: {
     paddingVertical: spacing.lg,
+  },
+  notificationsOff: {
+    gap: spacing.xs,
   },
 });

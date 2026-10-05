@@ -14,9 +14,15 @@
 //   4. Cria o guardian "pendente" (vira ativo quando o responsável
 //      aceita o convite e define a senha) e registra family_invites.
 //
-// Respostas: 201 criado · 400 corpo inválido · 401 sem/JWT inválido ·
-// 403 não-staff · 404 família inexistente · 405 método · 409 e-mail já
-// cadastrado · 500 erro interno (com rollback best-effort).
+// Reenvio: se já existe convite pendente (não aceito) para o mesmo e-mail e
+// família, o GoTrue reenvia o e-mail e devolve o MESMO usuário. Nesse caso
+// nada é apagado: o guardian é mantido, o prazo do convite é renovado e a
+// resposta é 200 { resent: true }.
+//
+// Respostas: 201 criado · 200 reenviado · 400 corpo inválido · 401 sem/JWT
+// inválido · 403 não-staff · 404 família inexistente · 405 método · 409 e-mail
+// já cadastrado ou família já com responsável principal · 500 erro interno
+// (com rollback best-effort, que nunca apaga usuário criado antes desta chamada).
 // ============================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -112,6 +118,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // --- 3. Família: nova ou existente ---
   let familyId: string;
   let createdFamily = false;
+  let familyHasPrimary = false;
   if (body.family_id) {
     const { data: fam, error: famError } = await admin
       .from("families")
@@ -125,6 +132,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return jsonResponse(404, { error: "family_not_found" });
     }
     familyId = fam.id;
+
+    const { data: primary, error: primaryError } = await admin
+      .from("guardians")
+      .select("user_id")
+      .eq("family_id", familyId)
+      .eq("is_primary", true)
+      .maybeSingle();
+    if (primaryError) {
+      return jsonResponse(500, { error: "guardian_lookup_failed", detail: primaryError.message });
+    }
+    familyHasPrimary = !!primary;
   } else {
     const { data: fam, error: famError } = await admin
       .from("families")
@@ -138,10 +156,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
     createdFamily = true;
   }
 
+  // Convite pendente para o mesmo e-mail nesta família = reenvio.
+  const { data: pendingInvite, error: pendingError } = await admin
+    .from("family_invites")
+    .select("id")
+    .eq("family_id", familyId)
+    .eq("email", email)
+    .is("accepted_at", null)
+    .order("invited_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pendingError) {
+    return jsonResponse(500, { error: "invite_lookup_failed", detail: pendingError.message });
+  }
+  const isResend = !!pendingInvite;
+
+  if (!isResend && body.is_primary && familyHasPrimary) {
+    return jsonResponse(409, { error: "primary_already_set" });
+  }
+  const isPrimary = (body.is_primary ?? false) && !familyHasPrimary;
+
   // Rollback best-effort: as chamadas não são transacionais entre si.
-  const rollback = async (invitedUserId?: string) => {
-    if (invitedUserId) {
-      await admin.auth.admin.deleteUser(invitedUserId).catch(() => {});
+  // Só apaga o usuário se ele foi criado por ESTA chamada; um usuário já
+  // convidado antes (reenvio, ou convite pendente de outra família) fica.
+  const startedAt = Date.now();
+  const rollback = async (invitedUser?: { id: string; created_at?: string }) => {
+    const createdNow =
+      !!invitedUser?.created_at &&
+      new Date(invitedUser.created_at).getTime() >= startedAt - 5000;
+    if (invitedUser && createdNow && !isResend) {
+      await admin.auth.admin.deleteUser(invitedUser.id).catch(() => {});
     }
     if (createdFamily) {
       await admin.from("families").delete().eq("id", familyId);
@@ -172,16 +216,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const invitedUserId = invited.user.id;
 
   // --- 5. Guardian pendente + trilha do convite ---
-  const { error: guardianError } = await admin.from("guardians").insert({
-    user_id: invitedUserId,
-    family_id: familyId,
-    display_name: displayName,
-    relationship: body.relationship ?? null,
-    is_primary: body.is_primary ?? false,
-  });
+  // upsert com ignoreDuplicates: no reenvio o vínculo já existe e fica como está.
+  const { error: guardianError } = await admin.from("guardians").upsert(
+    {
+      user_id: invitedUserId,
+      family_id: familyId,
+      display_name: displayName,
+      relationship: body.relationship ?? null,
+      is_primary: isPrimary,
+    },
+    { onConflict: "user_id,family_id", ignoreDuplicates: true },
+  );
   if (guardianError) {
-    await rollback(invitedUserId);
+    await rollback(invited.user);
+    // uq_guardian_primary: outro principal entrou entre a checagem e o insert.
+    if (guardianError.code === "23505") {
+      return jsonResponse(409, { error: "primary_already_set", detail: guardianError.message });
+    }
     return jsonResponse(500, { error: "guardian_insert_failed", detail: guardianError.message });
+  }
+
+  if (pendingInvite) {
+    const { data: renewed, error: renewError } = await admin
+      .from("family_invites")
+      .update({
+        invited_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .eq("id", pendingInvite.id)
+      .select("id, expires_at")
+      .single();
+    if (renewError || !renewed) {
+      return jsonResponse(500, { error: "invite_log_failed", detail: renewError?.message });
+    }
+    return jsonResponse(200, {
+      family_id: familyId,
+      family_created: false,
+      invited_user_id: invitedUserId,
+      invite_id: renewed.id,
+      expires_at: renewed.expires_at,
+      resent: true,
+    });
   }
 
   const { data: inviteRow, error: inviteRowError } = await admin
@@ -190,7 +265,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .select("id, expires_at")
     .single();
   if (inviteRowError || !inviteRow) {
-    await rollback(invitedUserId);
+    await rollback(invited.user);
     return jsonResponse(500, { error: "invite_log_failed", detail: inviteRowError?.message });
   }
 
@@ -200,5 +275,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     invited_user_id: invitedUserId,
     invite_id: inviteRow.id,
     expires_at: inviteRow.expires_at,
+    resent: false,
   });
 });

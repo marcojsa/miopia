@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui';
+import { MILESTONE_LABEL, faltamNoites } from '@/lib/gamification';
 import { colors, fonts, radii, spacing } from '@/theme/tokens';
 
 const MILESTONE_TITLE: Record<7 | 30 | 90, string> = {
@@ -22,10 +23,6 @@ export interface MilestoneProgressProps {
   totalNights: number;
   nextMilestone: 7 | 30 | 90 | null;
   nightsToNextMilestone: number;
-}
-
-function nightWord(n: number): string {
-  return n === 1 ? 'noite' : 'noites';
 }
 
 export function MilestoneProgress({
@@ -58,7 +55,7 @@ export function MilestoneProgress({
       </AppText>
       <View
         style={styles.progRow}
-        accessibilityLabel={`${totalNights} de ${nextMilestone} noites de cuidado. Faltam ${nightsToNextMilestone} ${nightWord(
+        accessibilityLabel={`${totalNights} de ${nextMilestone} noites de cuidado. ${faltamNoites(
           nightsToNextMilestone
         )}.`}
       >
@@ -75,8 +72,7 @@ export function MilestoneProgress({
         </AppText>
       </View>
       <AppText style={styles.caption} color={colors.purple200}>
-        Faltam {nightsToNextMilestone} {nightWord(nightsToNextMilestone)} para a{' '}
-        {MILESTONE_TITLE[nextMilestone].split(' · ')[0]}.
+        {faltamNoites(nightsToNextMilestone)} para {MILESTONE_LABEL[nextMilestone]}.
       </AppText>
     </View>
   );

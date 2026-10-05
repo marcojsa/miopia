@@ -9,6 +9,7 @@ import type {
   Child,
   ChildScheduleInput,
   ReminderPref,
+  ReminderSchedule,
   ReminderTime,
   Treatment,
   TreatmentType,
@@ -55,12 +56,24 @@ export function regimeLabel(type: TreatmentType): string {
 
 /**
  * Resumo curto do regime ativo para a lista de filhos (ex.: "Atropina ·
- * 20h30"). Sem horário quando não há sugestão. Vazio se não houver tratamento.
+ * 20h30"), com o horário do lembrete deste responsável (o mesmo do scheduler).
  */
-export function regimeSummary(treatment: Treatment | undefined): string {
+export function regimeSummary(treatment: Treatment | undefined, prefs: ReminderPref[] = []): string {
   if (!treatment) return 'Sem tratamento ativo no momento';
-  const time = formatTimePtBR(treatment.suggested_time);
+  const time = reminderTimeLabel(treatment, prefs);
   return time ? `${regimeLabel(treatment.type)} · ${time}` : regimeLabel(treatment.type);
+}
+
+/**
+ * Horário exibido de um tratamento: o do lembrete que toca neste aparelho
+ * (preferência do responsável > sugestão da médica > padrão do tipo). Óculos/lentes
+ * não têm lembrete: mostra só a sugestão, se houver.
+ */
+export function reminderTimeLabel(treatment: Treatment, prefs: ReminderPref[]): string | null {
+  if (treatment.type !== 'atropina' && treatment.type !== 'ortho_k') {
+    return formatTimePtBR(treatment.suggested_time);
+  }
+  return formatReminderTime(effectiveTime(treatment, prefs, fallbackTimeFor(treatment.type)));
 }
 
 /** 'HH:MM:SS' (ou 'HH:MM') -> '20h30' / '21h'. null se vazio/inválido. */
@@ -154,6 +167,7 @@ export function buildFamilySchedule(
       input.atropina = {
         treatmentId: atropinaTreatment.id,
         time: effectiveTime(atropinaTreatment, prefs, fallbackTimeFor('atropina')),
+        schedule: scheduleOf(atropinaTreatment),
       };
     }
     if (orthokTreatment) {
@@ -161,8 +175,17 @@ export function buildFamilySchedule(
         treatmentId: orthokTreatment.id,
         onTime: effectiveTime(orthokTreatment, prefs, fallbackTimeFor('ortho_k')),
         offTime: ORTHOK_OFF_TIME,
+        schedule: scheduleOf(orthokTreatment),
       };
     }
     return input;
   });
+}
+
+function scheduleOf(treatment: Treatment): ReminderSchedule {
+  return {
+    daysOfWeek: treatment.days_of_week,
+    startsOn: treatment.starts_on,
+    endsOn: treatment.ends_on,
+  };
 }

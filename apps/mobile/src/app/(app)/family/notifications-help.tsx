@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronIcon } from '@/components/icons';
 import { AppText, Button, Card, Screen } from '@/components/ui';
+import { REMINDER_CHANNEL_ID } from '@/lib/notifications/channels';
 import { colors, radii, spacing } from '@/theme/tokens';
 
 interface Step {
@@ -42,9 +43,9 @@ const STEPS: Step[] = [
 export default function NotificationsHelpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [testStatus, setTestStatus] = useState<'idle' | 'sending' | 'sent' | 'denied' | 'error'>(
-    'idle'
-  );
+  const [testStatus, setTestStatus] = useState<
+    'idle' | 'sending' | 'sent' | 'denied' | 'channel-muted' | 'error'
+  >('idle');
 
   const canGoBack = router.canGoBack();
 
@@ -62,12 +63,20 @@ export default function NotificationsHelpScreen() {
         setTestStatus('denied');
         return;
       }
+      // O teste passa pelo MESMO canal dos lembretes: canal silenciado = teste falha.
+      if (Platform.OS === 'android') {
+        const channel = await Notifications.getNotificationChannelAsync(REMINDER_CHANNEL_ID);
+        if (channel && channel.importance < Notifications.AndroidImportance.DEFAULT) {
+          setTestStatus('channel-muted');
+          return;
+        }
+      }
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Notificação de teste do Lumi',
           body: 'Se você está vendo isto, os lembretes deste aparelho estão funcionando.',
         },
-        trigger: null, // dispara agora
+        trigger: { channelId: REMINDER_CHANNEL_ID }, // dispara agora, no canal dos lembretes
       });
       setTestStatus('sent');
     } catch {
@@ -163,6 +172,16 @@ export default function NotificationsHelpScreen() {
               >
                 As notificações estão bloqueadas. Ative-as nas configurações do aparelho (passo 1) e
                 tente de novo.
+              </AppText>
+            ) : testStatus === 'channel-muted' ? (
+              <AppText
+                variant="meta"
+                color={colors.ink}
+                style={styles.testFeedback}
+                accessibilityLiveRegion="polite"
+              >
+                O canal "Lembretes do tratamento" está silenciado neste aparelho. Ative-o com som e
+                prioridade altos (passo 2) e tente de novo.
               </AppText>
             ) : testStatus === 'error' ? (
               <AppText

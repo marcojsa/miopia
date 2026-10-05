@@ -15,6 +15,11 @@ export const SKY_H = 318;
 // e margem nas bordas). Coordenadas em unidades do viewBox.
 const BOX = { left: 40, right: 358, top: 64, bottom: 286 } as const;
 
+// Distância mínima entre centros vizinhos (estrela 22 + folga) e jitter máximo
+// da célula (fração), usado quando há espaço de sobra.
+const MIN_GAP = 26;
+const MAX_JITTER = 0.64;
+
 /** Estado visual da estrela já resolvido para o desenho. */
 export type SkyMarkKind = 'gold' | 'silver' | 'cloud' | 'empty' | 'today';
 
@@ -61,21 +66,27 @@ export function layoutSky(days: SkyDay[], today: string): SkyMark[] {
   // Visível = tudo que não é puro futuro/antes-do-início, MAIS a noite de hoje
   // (que vem como 'future' em computeSky, mas a tela desenha tracejada).
   const visible = days.filter(
-    (d) => d.state !== 'before_start' && (d.state !== 'future' || d.date === today)
+    (d) =>
+      d.state !== 'before_start' &&
+      d.state !== 'off' &&
+      (d.state !== 'future' || d.date === today)
   );
 
   const cols = 5;
   const cellW = (BOX.right - BOX.left) / cols;
   const rows = Math.max(1, Math.ceil(visible.length / cols));
   const cellH = (BOX.bottom - BOX.top) / rows;
+  // Jitter limitado para que centros de células vizinhas fiquem a >= MIN_GAP
+  // em cada eixo (meses de 6-7 linhas encavalavam estrelas e nuvens).
+  const jxMax = Math.min(MAX_JITTER, Math.max(0, cellW - MIN_GAP) / cellW);
+  const jyMax = Math.min(MAX_JITTER, Math.max(0, cellH - MIN_GAP) / cellH);
 
   return visible.map((d, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const rnd = rngFor(d.date);
-    // Jitter dentro da célula (margem de 18% p/ não encostar nas vizinhas).
-    const jx = 0.18 + rnd() * 0.64;
-    const jy = 0.18 + rnd() * 0.64;
+    const jx = (1 - jxMax) / 2 + rnd() * jxMax;
+    const jy = (1 - jyMax) / 2 + rnd() * jyMax;
     const cx = BOX.left + col * cellW + jx * cellW;
     const cy = BOX.top + row * cellH + jy * cellH;
     const day = Number(d.date.slice(8, 10));

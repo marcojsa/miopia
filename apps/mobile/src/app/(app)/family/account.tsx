@@ -9,6 +9,7 @@
 //
 // ANVISA/LGPD: nenhum dado clínico é exibido ou julgado; aqui é só conta e
 // direitos do titular.
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -27,7 +28,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthTextField } from '@/components/auth/AuthTextField';
 import { ChevronIcon } from '@/components/icons';
 import { AppText, Button, Card, Screen, SectionHeader } from '@/components/ui';
-import { cancelAllSchedules } from '@/lib/notifications/scheduler';
+import { useChildren } from '@/hooks';
+import { signOutDoAparelho } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
 import { colors, radii, spacing } from '@/theme/tokens';
@@ -54,6 +56,28 @@ export default function AccountScreen() {
   const { session } = useSession();
 
   const email = session?.user.email ?? 'Sem e-mail';
+  const userId = session?.user.id ?? null;
+  const queryClient = useQueryClient();
+  const childrenQuery = useChildren();
+
+  // Crianças com autorização de dados de saúde vigente dada por este responsável.
+  const consentsQuery = useQuery({
+    queryKey: ['consents', userId ?? 'anon'],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from('consents')
+        .select('child_id')
+        .eq('user_id', userId ?? '')
+        .is('revoked_at', null);
+      if (error) throw error;
+      return [...new Set((data ?? []).map((c) => c.child_id))];
+    },
+  });
+  const consentedChildren = (childrenQuery.data ?? []).filter((c) =>
+    (consentsQuery.data ?? []).includes(c.id)
+  );
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -103,9 +127,9 @@ export default function AccountScreen() {
     try {
       const { error } = await supabase.functions.invoke('delete-account');
       if (error) throw error;
-      // Limpa os lembretes locais antes de encerrar a sessão.
-      await cancelAllSchedules();
-      await supabase.auth.signOut();
+      // Conta apagada no servidor: sai deste aparelho e apaga os dados locais
+      // (cache, lembretes, fila de check-ins), mesmo se o servidor não responder.
+      await signOutDoAparelho();
       // O guard do (app)/_layout redireciona ao detectar a sessão nula.
     } catch {
       setStatus({
@@ -114,6 +138,48 @@ export default function AccountScreen() {
       });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const confirmRevoke = (childId: string, firstName: string): void => {
+    if (revokingId) return;
+    Alert.alert(
+      `Retirar a autorização de ${firstName}?`,
+      'O app deixa de tratar os dados de saúde desta criança até você autorizar de novo. O histórico já registrado pela clínica não é apagado.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Retirar autorização',
+          style: 'destructive',
+          onPress: () => {
+            void runRevoke(childId);
+          },
+        },
+      ]
+    );
+  };
+
+  const runRevoke = async (childId: string): Promise<void> => {
+    if (!userId) return;
+    setRevokingId(childId);
+    try {
+      const { error } = await supabase
+        .from('consents')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('child_id', childId)
+        .is('revoked_at', null);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['consents'] });
+      // O gate de (app)/_layout volta a pedir o consentimento desta criança.
+      await queryClient.invalidateQueries({ queryKey: ['consent-pending'] });
+    } catch {
+      Alert.alert(
+        'Não foi possível retirar a autorização agora',
+        'Verifique sua internet e tente de novo, ou fale com a clínica.'
+      );
+    } finally {
+      setRevokingId(null);
     }
   };
 
@@ -195,6 +261,41 @@ export default function AccountScreen() {
                 <ChevronIcon direction="right" color={colors.ink3} size={20} />
               </Card>
             </Pressable>
+
+            {consentedChildren.length > 0 ? (
+              <>
+                <SectionHeader title="Autorizações de dados de saúde" style={styles.sectionHeader} />
+                <Card>
+                  <AppText variant="body" color={colors.ink2} style={styles.rightsIntro}>
+                    Você pode retirar a autorização a qualquer momento. Para voltar a usar o app com
+                    a criança, basta autorizar de novo.
+                  </AppText>
+                  {consentedChildren.map((child) => (
+                    <View key={child.id} style={styles.consentRow}>
+                      <AppText variant="body" color={colors.ink} style={styles.rightText}>
+                        {child.first_name}
+                      </AppText>
+                      <Pressable
+                        onPress={() => confirmRevoke(child.id, child.first_name)}
+                        disabled={revokingId !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Retirar a autorização de ${child.first_name}`}
+                        hitSlop={8}
+                        style={({ pressed }) => [pressed ? styles.pressedDim : null]}
+                      >
+                        {revokingId === child.id ? (
+                          <ActivityIndicator color={colors.purple} />
+                        ) : (
+                          <AppText variant="meta" color={colors.purple}>
+                            Retirar autorização
+                          </AppText>
+                        )}
+                      </Pressable>
+                    </View>
+                  ))}
+                </Card>
+              </>
+            ) : null}
 
             <SectionHeader title="Excluir minha conta" style={styles.sectionHeader} />
             <Card style={styles.dangerCard}>
@@ -319,6 +420,12 @@ const styles = StyleSheet.create({
   },
   rightText: {
     flex: 1,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
   },
   linkWrap: {
     marginTop: spacing.md,

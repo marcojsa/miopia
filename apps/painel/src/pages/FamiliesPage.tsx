@@ -3,7 +3,8 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useCreateFamily, useFamilies } from '@/hooks/useFamilies';
-import { fmtDate } from '@/lib/labels';
+import { toPtBr } from '@/lib/errors';
+import { fmtTimestampDate } from '@/lib/labels';
 
 export function FamiliesPage() {
   const { data: families, isLoading, error } = useFamilies();
@@ -18,7 +19,7 @@ export function FamiliesPage() {
       await createFamily.mutateAsync(label);
       setLabel('');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erro ao criar família.');
+      setFormError(toPtBr(err, 'Erro ao criar família.'));
     }
   }
 
@@ -49,7 +50,7 @@ export function FamiliesPage() {
       <section>
         <h2>Famílias cadastradas</h2>
         {isLoading ? <p>Carregando...</p> : null}
-        {error ? <p className="error">Erro ao carregar: {(error as Error).message}</p> : null}
+        {error ? <p className="error">Erro ao carregar: {toPtBr(error)}</p> : null}
         {families && families.length === 0 ? (
           <p className="muted">Nenhuma família cadastrada ainda.</p>
         ) : null}
@@ -66,7 +67,7 @@ export function FamiliesPage() {
               {families.map((family) => (
                 <tr key={family.id}>
                   <td>{family.label}</td>
-                  <td>{fmtDate(family.created_at)}</td>
+                  <td>{fmtTimestampDate(family.created_at)}</td>
                   <td>
                     <Link to={`/familias/${family.id}`}>Abrir</Link>
                   </td>

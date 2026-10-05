@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
+import { toPtBr } from '@/lib/errors';
 
 interface LocationState {
   from?: { pathname: string };
@@ -33,9 +34,7 @@ export function LoginPage() {
       await signIn(email, password);
       navigate('/familias', { replace: true });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Não foi possível entrar. Verifique os dados.',
-      );
+      setError(toPtBr(err, 'Não foi possível entrar. Verifique os dados.'));
     } finally {
       setSubmitting(false);
     }

@@ -14,6 +14,7 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { RequireSession } from '@/components/auth/RequireSession';
 import {
   LumiBubble,
   MilestoneCards,
@@ -25,7 +26,8 @@ import {
 import { XIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, EmptyState, Screen } from '@/components/ui';
-import { useAdherenceLogs, useChildren, usePausedDates, useTreatments } from '@/hooks';
+import { isScheduledOn } from '@/components/hoje/hojeHelpers';
+import { ALL_HISTORY, useAdherenceLogs, useChildren, usePausedDates, useTreatments } from '@/hooks';
 import { localDateString } from '@/lib/date';
 import {
   computeShields,
@@ -51,6 +53,14 @@ const MONTH_NAMES = [
 ] as const;
 
 export default function CeuScreen() {
+  return (
+    <RequireSession>
+      <CeuScreenContent />
+    </RequireSession>
+  );
+}
+
+function CeuScreenContent() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -66,7 +76,6 @@ export default function CeuScreen() {
   const childId = child?.id ?? '';
 
   const treatmentsQuery = useTreatments(childId || undefined);
-  const adherenceQuery = useAdherenceLogs(childId);
   const pausedQuery = usePausedDates(childId);
 
   const today = localDateString();
@@ -81,20 +90,33 @@ export default function CeuScreen() {
     return list.reduce((min, t) => (t.starts_on < min ? t.starts_on : min), list[0].starts_on);
   }, [treatmentsQuery.data]);
 
+  // Histórico inteiro (a troca de regime não pode apagar as noites anteriores);
+  // espera os tratamentos, que dizem quais noites eram devidas.
+  const adherenceQuery = useAdherenceLogs(
+    childId,
+    treatmentsQuery.data === undefined ? null : ALL_HISTORY
+  );
+
+  // Noite devida = algum tratamento ativo programado (dias da semana, ends_on).
+  const isDue = useMemo(() => {
+    const list = treatmentsQuery.data ?? [];
+    return (date: string) => list.some((t) => isScheduledOn(t, date));
+  }, [treatmentsQuery.data]);
+
   const logs = adherenceQuery.data ?? [];
   const pausedDates = pausedQuery.data?.pausedDates ?? [];
 
   const sky = useMemo(
-    () => computeSky(logs, pausedDates, monthYM, startsOn ?? today, today),
-    [logs, pausedDates, monthYM, startsOn, today]
+    () => computeSky(logs, pausedDates, monthYM, startsOn ?? today, today, isDue),
+    [logs, pausedDates, monthYM, startsOn, today, isDue]
   );
   const shields = useMemo(
-    () => computeShields(logs, pausedDates, today, startsOn),
-    [logs, pausedDates, today, startsOn]
+    () => computeShields(logs, pausedDates, today, startsOn, isDue),
+    [logs, pausedDates, today, startsOn, isDue]
   );
   const milestones = useMemo(
-    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn),
-    [logs, pausedDates, today, startsOn]
+    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue),
+    [logs, pausedDates, today, startsOn, isDue]
   );
 
   const childName = child?.first_name ?? '';

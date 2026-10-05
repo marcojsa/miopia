@@ -11,4 +11,5 @@ export {
   taskTitle,
   taskInstruction,
   isScheduledToday,
+  isScheduledOn,
 } from './hojeHelpers';

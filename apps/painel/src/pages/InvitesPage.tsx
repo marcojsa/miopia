@@ -1,9 +1,10 @@
 // Convites: convida um responsável para uma família existente, chamando a
 // Edge Function 'invite-family' (que usa a service_role key no servidor).
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { useFamilies } from '@/hooks/useFamilies';
-import { useInviteFamily } from '@/hooks/useInvites';
+import { useFamilyHasPrimary, useInviteFamily } from '@/hooks/useInvites';
+import { toPtBr } from '@/lib/errors';
 
 export function InvitesPage() {
   const { data: families } = useFamilies();
@@ -13,7 +14,25 @@ export function InvitesPage() {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [relationship, setRelationship] = useState('');
-  const [isPrimary, setIsPrimary] = useState(true);
+  const [isPrimary, setIsPrimary] = useState(false);
+  const { data: familyHasPrimary } = useFamilyHasPrimary(familyId || undefined);
+
+  // Padrão: principal só quando a família ainda não tem um.
+  function selectFamily(id: string) {
+    setFamilyId(id);
+    setIsPrimary(false);
+  }
+  const primaryDefaultFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!familyId || familyHasPrimary === undefined) return;
+    if (familyHasPrimary) {
+      setIsPrimary(false);
+      return;
+    }
+    if (primaryDefaultFor.current === familyId) return;
+    primaryDefaultFor.current = familyId;
+    setIsPrimary(true);
+  }, [familyId, familyHasPrimary]);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -33,12 +52,17 @@ export function InvitesPage() {
         relationship: relationship || undefined,
         is_primary: isPrimary,
       });
-      setSuccess(`Convite enviado. Expira em ${new Date(result.expires_at).toLocaleString('pt-BR')}.`);
+      const expira = new Date(result.expires_at).toLocaleString('pt-BR');
+      setSuccess(
+        result.resent
+          ? `Este e-mail já tinha um convite pendente: o e-mail foi reenviado e o prazo renovado até ${expira}.`
+          : `Convite enviado. Expira em ${expira}.`,
+      );
       setEmail('');
       setDisplayName('');
       setRelationship('');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erro ao enviar convite.');
+      setFormError(toPtBr(err, 'Erro ao enviar convite.'));
     }
   }
 
@@ -54,7 +78,7 @@ export function InvitesPage() {
         <label>
           Família
           <br />
-          <select value={familyId} onChange={(e) => setFamilyId(e.target.value)} required>
+          <select value={familyId} onChange={(e) => selectFamily(e.target.value)} required>
             <option value="">Selecione...</option>
             {families?.map((family) => (
               <option key={family.id} value={family.id}>
@@ -96,10 +120,14 @@ export function InvitesPage() {
           <input
             type="checkbox"
             checked={isPrimary}
+            disabled={familyHasPrimary === true}
             onChange={(e) => setIsPrimary(e.target.checked)}
           />{' '}
           Responsável principal (assina o consentimento primeiro)
         </label>
+        {familyHasPrimary ? (
+          <p className="muted">Esta família já tem um responsável principal.</p>
+        ) : null}
 
         {formError ? <p className="error">{formError}</p> : null}
         {success ? <p>{success}</p> : null}

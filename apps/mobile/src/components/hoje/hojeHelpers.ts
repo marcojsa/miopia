@@ -3,6 +3,8 @@
 // rotina (ANVISA RDC 657/2022). Testável isoladamente (sem imports de RN).
 import type { Treatment, TreatmentType } from '@/types/domain';
 
+import { weekdayOfYMD } from '../../lib/date.ts';
+
 const WEEKDAYS_LONG = [
   'domingo',
   'segunda-feira',
@@ -58,12 +60,12 @@ export function formatTimePtBR(time: string | null): string | null {
 export function taskTitle(type: TreatmentType, firstName: string): string {
   switch (type) {
     case 'atropina':
-      return `Hora do colírio da ${firstName}`;
+      return `Hora do colírio de ${firstName}`;
     case 'ortho_k':
-      return `Hora da lente da ${firstName}`;
+      return `Hora da lente de ${firstName}`;
     case 'oculos_lentes':
     default:
-      return `Cuidado da ${firstName}`;
+      return `Cuidado de ${firstName}`;
   }
 }
 
@@ -89,7 +91,7 @@ export function taskInstruction(treatment: Treatment): string {
 /**
  * O tratamento está agendado para a data lógica de hoje?
  * Respeita janela [starts_on, ends_on] e days_of_week (0=domingo..6=sábado).
- * `todayYMD` é a data lógica (corte 04h) e `weekday` o getDay() do dia exibido.
+ * `todayYMD` é a data lógica (corte 04h) e `weekday` o getDay() dessa mesma data lógica (use weekdayOfYMD).
  */
 export function isScheduledToday(
   treatment: Treatment,
@@ -102,4 +104,9 @@ export function isScheduledToday(
     return false;
   }
   return true;
+}
+
+/** O tratamento tinha cuidado programado na noite da data lógica `ymd`? */
+export function isScheduledOn(treatment: Treatment, ymd: string): boolean {
+  return isScheduledToday(treatment, ymd, weekdayOfYMD(ymd));
 }
