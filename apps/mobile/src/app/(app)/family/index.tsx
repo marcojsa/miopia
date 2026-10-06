@@ -11,10 +11,10 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronIcon, PeopleIcon } from '@/components/icons';
-import { SettingsRow, ageLabel, regimeSummary } from '@/components/familia';
+import { SettingsRow, ageLabel, regimeLabel, regimeSummary } from '@/components/familia';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, Card, ChildAvatar, EmptyState, Screen, SectionHeader } from '@/components/ui';
-import { useChildren, useReminderPrefs, useTreatments } from '@/hooks';
+import { useChildren, usePausedChildIds, useReminderPrefs, useTreatments } from '@/hooks';
 import { signOutDoAparelho } from '@/lib/session';
 import { useSession } from '@/providers/auth';
 import { colors, spacing } from '@/theme/tokens';
@@ -33,6 +33,7 @@ export default function FamilyIndexScreen() {
   const treatments = treatmentsQuery.data ?? [];
   const prefs = prefsQuery.data ?? [];
   const email = session?.user.email ?? 'Sem e-mail';
+  const pausedIds = usePausedChildIds(children.map((c) => c.id));
 
   const handleSignOut = (): void => {
     if (signingOut) return;
@@ -107,9 +108,11 @@ export default function FamilyIndexScreen() {
           children.map((child) => {
             const childTreatments = treatments.filter((t) => t.child_id === child.id);
             const regime =
-              childTreatments.length > 0
-                ? childTreatments.map((t) => regimeSummary(t, prefs)).join(', ')
-                : regimeSummary(undefined, prefs);
+              childTreatments.length === 0
+                ? regimeSummary(undefined, prefs)
+                : pausedIds.has(child.id)
+                  ? `${childTreatments.map((t) => regimeLabel(t.type)).join(', ')} · Lembretes pausados (férias)`
+                  : childTreatments.map((t) => regimeSummary(t, prefs)).join(', ');
             const age = ageLabel(child.birth_date);
             return (
               <Pressable

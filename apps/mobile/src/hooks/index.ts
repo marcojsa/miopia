@@ -20,6 +20,7 @@ export {
 export { useConsentPending, type ConsentPendingResult } from './useConsentPending';
 export {
   usePausedDates,
+  usePausedChildIds,
   getPausedState,
   setChildPaused,
   markTodayPausedIfNeeded,

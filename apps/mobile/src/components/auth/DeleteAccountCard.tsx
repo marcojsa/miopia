@@ -16,7 +16,7 @@ import { colors, radii, spacing } from '@/theme/tokens';
 const CONFIRM_WORD = 'EXCLUIR';
 
 export const AVISO_CONTA_EXCLUIDA =
-  'Sua conta foi excluída. Seus dados de acesso e os registros de cuidado deste app foram apagados. As medições das consultas permanecem no prontuário da clínica.';
+  'Sua conta foi excluída. Sua conta de acesso, seus lembretes e suas autorizações foram apagados. Os registros de cuidado ficam no histórico da criança, sem o seu nome, junto com as medições das consultas no prontuário da clínica.';
 
 export function DeleteAccountCard() {
   const [confirmText, setConfirmText] = useState('');
@@ -59,7 +59,7 @@ export function DeleteAccountCard() {
     if (deleting || !confirmMatches) return;
     Alert.alert(
       'Excluir sua conta?',
-      'Esta ação não pode ser desfeita. Sua conta de acesso e os registros de cuidado deste app serão apagados. As medições das consultas permanecem no prontuário da clínica (exigência do CFM).',
+      'Esta ação não pode ser desfeita. Sua conta de acesso, seus lembretes e suas autorizações serão apagados. Os registros de cuidado ficam no histórico da criança, sem o seu nome, e as medições das consultas permanecem no prontuário da clínica (exigência do CFM).',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -76,8 +76,8 @@ export function DeleteAccountCard() {
   return (
     <Card style={styles.dangerCard}>
       <AppText variant="body" color={colors.ink} style={styles.dangerIntro}>
-        Ao excluir, apagamos sua conta de acesso e os registros de cuidado feitos por você neste
-        app.
+        Ao excluir, apagamos sua conta de acesso, seus lembretes e suas autorizações. Os registros
+        de cuidado que você fez continuam no histórico da criança, sem o seu nome.
       </AppText>
       <AppText variant="meta" color={colors.ink2} style={styles.dangerKeep}>
         O que permanece: as medições e a evolução das consultas pertencem ao prontuário da clínica

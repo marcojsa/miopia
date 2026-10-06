@@ -147,6 +147,11 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
         );
         return;
       }
+      // Só agora o convite conta como aceito (o clique no link não basta).
+      await supabase.rpc('accept_my_invites').then(
+        () => undefined,
+        () => undefined
+      );
       linkSessionUserId = null;
       router.replace('/');
     } catch {

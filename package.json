@@ -13,7 +13,9 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:smoke": "node scripts/smoke-rls.mjs",
-    "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts"
+    "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts",
+    "db:convite": "node scripts/convite-e2e.mjs",
+    "db:start:leve": "supabase start -x storage-api,postgres-meta,studio,imgproxy,logflare,vector,supavisor"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.49.0",

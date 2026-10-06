@@ -37,6 +37,7 @@ import {
   useChildren,
   useCheckinMutation,
   useNotificationPermission,
+  usePausedChildIds,
   usePausedDates,
   useReminderPrefs,
   useTodayAdherence,
@@ -66,8 +67,13 @@ function displayNameOf(metadata: Record<string, unknown> | undefined): string {
 
 // Subtítulo do chip do filho: tipo de cada tratamento + horário do lembrete deste
 // aparelho (ex.: "lente 21h15 · colírio 20h30") — o mesmo horário em que a notificação toca.
-function chipSubtitle(treatments: Treatment[], prefs: ReminderPref[]): string | null {
+function chipSubtitle(
+  treatments: Treatment[],
+  prefs: ReminderPref[],
+  paused: boolean
+): string | null {
   if (treatments.length === 0) return null;
+  if (paused) return 'em pausa';
   return treatments
     .map((t) => {
       const time = reminderTimeLabel(t, prefs);
@@ -144,13 +150,18 @@ export default function TodayScreen() {
 
   // Chips: cada filho + subtítulo do 1º tratamento (da query da família inteira).
   const prefs = useMemo(() => prefsQuery.data ?? [], [prefsQuery.data]);
+  const pausedIds = usePausedChildIds(children.map((c) => c.id));
   const chips: ChildChip[] = useMemo(() => {
     const all = allTreatmentsQuery.data ?? [];
     return children.map((child) => ({
       child,
-      subtitle: chipSubtitle(all.filter((t) => t.child_id === child.id), prefs),
+      subtitle: chipSubtitle(
+        all.filter((t) => t.child_id === child.id),
+        prefs,
+        pausedIds.has(child.id)
+      ),
     }));
-  }, [children, allTreatmentsQuery.data, prefs]);
+  }, [children, allTreatmentsQuery.data, prefs, pausedIds]);
 
   // Tratamentos do filho ativo agendados para hoje.
   const scheduledTreatments = useMemo(

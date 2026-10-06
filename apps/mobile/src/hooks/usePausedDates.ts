@@ -16,7 +16,8 @@
 // grava o intervalo inteiro em paused-dates. Quem pausa também deve refletir
 // nos lembretes via syncSchedulesForFamily({ remindersPaused: true }).
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import { localDateString } from '@/lib/date';
 import { datesBetween } from '@/lib/gamification';
@@ -104,6 +105,22 @@ export function usePausedDates(childId: string): UseQueryResult<PausedState> {
     staleTime: Infinity,
     queryFn: () => getPausedState(childId),
   });
+}
+
+/** Filhos com pausa de férias ativa (mesmas queries de usePausedDates, compartilham o cache). */
+export function usePausedChildIds(childIds: string[]): Set<string> {
+  const today = localDateString();
+  const pausedKey = useQueries({
+    queries: childIds.map((childId) => ({
+      queryKey: [...queryKeys.paused(childId), today],
+      staleTime: Infinity,
+      queryFn: () => getPausedState(childId),
+    })),
+  })
+    .map((r, i) => (r.data?.paused === true ? childIds[i] : null))
+    .filter((id): id is string => id !== null)
+    .join(',');
+  return useMemo(() => new Set(pausedKey ? pausedKey.split(',') : []), [pausedKey]);
 }
 
 async function appendPausedDate(childId: string, date: string): Promise<boolean> {

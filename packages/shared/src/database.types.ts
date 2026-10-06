@@ -590,7 +590,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_my_invites: { Args: never; Returns: undefined }
     }
     Enums: {
       adherence_status: "feito" | "pulado"
