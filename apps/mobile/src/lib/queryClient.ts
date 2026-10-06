@@ -9,8 +9,8 @@ const HOUR = 60 * 60 * 1000;
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Default conservador (medições/status da médica). Regimes/horários usam
-      // staleTime menor (1h) definido no próprio hook da feature.
+      // Default conservador. Filhos, medições, tratamentos e adesão usam staleTime
+      // curto no próprio hook: o que a clínica muda precisa chegar ao reabrir o app.
       staleTime: 12 * HOUR,
       gcTime: 7 * 24 * HOUR, // precisa ser >= maxAge do persister
       retry: 2,

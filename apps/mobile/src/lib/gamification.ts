@@ -165,14 +165,14 @@ function simulateNights(
 
   for (let date = startsOn; date < today && steps < MAX_SIMULATED_NIGHTS; date = addDays(date, 1)) {
     steps++;
-    if (paused.has(date)) {
-      nights.set(date, 'paused'); // nuvem: não conta nem quebra
-      continue;
-    }
+    // Noite feita vale mesmo em data pausada: a pausa ligada depois do "Feito"
+    // não apaga a estrela.
     if (completeByDate.get(date) === true) {
       total++;
       if (total % NIGHTS_PER_SHIELD === 0 && shields < MAX_SHIELDS) shields++;
       nights.set(date, 'complete');
+    } else if (paused.has(date)) {
+      nights.set(date, 'paused'); // nuvem: não conta nem quebra
     } else if (isDue && !isDue(date)) {
       nights.set(date, 'off'); // sem cuidado programado: não conta nem consome escudo
     } else if (shields > 0) {
@@ -183,14 +183,15 @@ function simulateNights(
     }
   }
 
-  // Hoje: conta se já completa; pausada vira nuvem; pendente fica fora do mapa.
+  // Hoje: conta se já completa (mesmo pausada); pausada vira nuvem; pendente
+  // fica fora do mapa.
   if (today >= startsOn) {
-    if (paused.has(today)) {
-      nights.set(today, 'paused');
-    } else if (completeByDate.get(today) === true) {
+    if (completeByDate.get(today) === true) {
       total++;
       if (total % NIGHTS_PER_SHIELD === 0 && shields < MAX_SHIELDS) shields++;
       nights.set(today, 'complete');
+    } else if (paused.has(today)) {
+      nights.set(today, 'paused');
     }
   }
 

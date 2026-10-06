@@ -1,6 +1,7 @@
-// Dados locais POR USUÁRIO (cache persistido, outbox, pausas, lembretes) e saída
-// do aparelho. As query keys não levam o id do usuário: ao trocar de conta, tudo
-// isso precisa sumir, senão a próxima família vê os dados da anterior (LGPD).
+// Dados locais POR USUÁRIO (cache persistido, outbox, lembretes) e saída
+// do aparelho. A pausa de férias fica: as chaves levam o id do usuário
+// (usePausedDates). As query keys não levam o id do usuário: ao trocar de conta,
+// tudo isso precisa sumir, senão a próxima família vê os dados da anterior (LGPD).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';

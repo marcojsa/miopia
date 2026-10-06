@@ -11,10 +11,13 @@ interface UiState {
    * (app) passar pelos gates (sessão, consentimento) e o navegador existir.
    */
   pendingCheckin: { childId: string; type: string } | null;
+  /** Aviso mostrado uma vez na Welcome (ex.: conta excluída). Sobrevive ao sair. */
+  welcomeNotice: string | null;
 }
 
 export const useUiStore = create<UiState>((set) => ({
   activeChildId: null,
   setActiveChildId: (childId) => set({ activeChildId: childId }),
   pendingCheckin: null,
+  welcomeNotice: null,
 }));

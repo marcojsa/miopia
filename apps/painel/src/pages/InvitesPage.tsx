@@ -1,6 +1,6 @@
 // Convites: convida um responsável para uma família existente, chamando a
 // Edge Function 'invite-family' (que usa a service_role key no servidor).
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 
 import { useFamilies } from '@/hooks/useFamilies';
 import { useFamilyHasPrimary, useInviteFamily } from '@/hooks/useInvites';
@@ -14,25 +14,20 @@ export function InvitesPage() {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [relationship, setRelationship] = useState('');
-  const [isPrimary, setIsPrimary] = useState(false);
+  const [primaryChoice, setPrimaryChoice] = useState<Record<string, boolean>>({});
   const { data: familyHasPrimary } = useFamilyHasPrimary(familyId || undefined);
 
-  // Padrão: principal só quando a família ainda não tem um.
+  // Padrão: principal só quando a família ainda não tem um. A escolha manual
+  // vale por família e sobrevive a trocar de família e voltar.
+  const isPrimary =
+    !!familyId && familyHasPrimary === false && (primaryChoice[familyId] ?? true);
+  function setIsPrimary(value: boolean) {
+    if (!familyId) return;
+    setPrimaryChoice((prev) => ({ ...prev, [familyId]: value }));
+  }
   function selectFamily(id: string) {
     setFamilyId(id);
-    setIsPrimary(false);
   }
-  const primaryDefaultFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!familyId || familyHasPrimary === undefined) return;
-    if (familyHasPrimary) {
-      setIsPrimary(false);
-      return;
-    }
-    if (primaryDefaultFor.current === familyId) return;
-    primaryDefaultFor.current = familyId;
-    setIsPrimary(true);
-  }, [familyId, familyHasPrimary]);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 

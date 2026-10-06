@@ -32,6 +32,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
     }
     setEndError(null);
     endTreatment.mutate(treatmentId, {
+      onSuccess: () => setFormError(null),
       onError: (err) => setEndError(toPtBr(err, 'Não foi possível encerrar o tratamento.')),
     });
   }

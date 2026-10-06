@@ -27,6 +27,10 @@ import { colors, gradients, radii, spacing } from '@/theme/tokens';
 const MIN_PASSWORD = 8;
 const MSG_OFFLINE = 'Não conseguimos conectar. Verifique sua internet e tente novamente.';
 
+// Conta cuja sessão foi aberta por um link de e-mail ainda não usado para gravar a senha.
+// Em memória do módulo: sobrevive à remontagem da tela, mas não a abrir a rota sem link.
+let linkSessionUserId: string | null = null;
+
 type Mode = 'convite' | 'recuperacao';
 type Phase = 'opening' | 'form' | 'invalid';
 
@@ -89,20 +93,31 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
       }
       if (parsed.kind === 'tokens') {
         try {
-          const { error } = await supabase.auth.setSession({
+          const { data, error } = await supabase.auth.setSession({
             access_token: parsed.accessToken,
             refresh_token: parsed.refreshToken,
           });
-          if (mounted.current) setPhase(error ? 'invalid' : 'form');
+          if (!error && data.user) linkSessionUserId = data.user.id;
+          if (mounted.current) setPhase(error || !data.user ? 'invalid' : 'form');
         } catch {
           if (mounted.current) setPhase('invalid');
         }
         return;
       }
-      // Link já consumido (tela remontada) com a sessão aberta: segue para a senha.
-      if (mounted.current) setPhase(sessionRef.current ? 'form' : 'invalid');
+      // Sem tokens: só segue para a senha se a sessão foi aberta pelo link (tela remontada).
+      // Sessão aberta por login comum não troca senha por aqui.
+      const current = sessionRef.current;
+      if (current && linkSessionUserId === current.user.id) {
+        if (mounted.current) setPhase('form');
+        return;
+      }
+      if (current) {
+        if (mounted.current) router.replace('/');
+        return;
+      }
+      if (mounted.current) setPhase('invalid');
     })();
-  }, [url, phase, authLoading]);
+  }, [url, phase, authLoading, router]);
 
   const handleSave = async (): Promise<void> => {
     if (saving) return;
@@ -132,6 +147,7 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
         );
         return;
       }
+      linkSessionUserId = null;
       router.replace('/');
     } catch {
       setStatus(MSG_OFFLINE);
@@ -244,6 +260,16 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
                   loading={saving}
                   style={styles.submit}
                 />
+                <Button
+                  label="Cancelar"
+                  variant="ghost"
+                  disabled={saving}
+                  onPress={() => {
+                    linkSessionUserId = null;
+                    router.replace('/');
+                  }}
+                  style={styles.cancel}
+                />
               </Card>
             </>
           )}
@@ -292,5 +318,8 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.xl,
+  },
+  cancel: {
+    marginTop: spacing.md,
   },
 });

@@ -228,3 +228,27 @@ test('céu de mês cheio: estrelas vizinhas não se sobrepõem', () => {
     }
   }
 });
+
+test('pausa ligada depois do "Feito" não apaga a estrela da noite', () => {
+  const logs = feitoOn([1, 2, 3]);
+  const paused = ['2026-06-02', '2026-06-03'];
+
+  const week = computeWeek(logs, paused, '2026-06-03', START);
+  assert.equal(week.days[1].state, 'gold');
+  assert.equal(week.days[2].state, 'gold');
+  assert.equal(week.completedNights, 3);
+
+  const shields = computeShields(logs, paused, '2026-06-03', START);
+  assert.equal(shields.totalNights, 3);
+
+  const sky = computeSky(logs, paused, '2026-06', START, '2026-06-04');
+  assert.equal(sky[1].state, 'gold');
+  assert.equal(sky[2].state, 'gold');
+});
+
+test('noite pausada sem "Feito" continua nuvem, mesmo com "pulado"', () => {
+  const logs: GamificationLog[] = [{ log_date: '2026-06-02', status: 'pulado' }];
+  const sky = computeSky(logs, ['2026-06-02', '2026-06-03'], '2026-06', START, '2026-06-03');
+  assert.equal(sky[1].state, 'cloud');
+  assert.equal(sky[2].state, 'cloud');
+});

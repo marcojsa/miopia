@@ -30,6 +30,7 @@ import { AppText, Button, EmptyState, Screen } from '@/components/ui';
 import { useChildren, useCheckinMutation, useTodayAdherence, useTreatments } from '@/hooks';
 import { localDateString } from '@/lib/date';
 import { parseNotifId } from '@/lib/notifications/scheduler';
+import { useUiStore } from '@/stores/ui';
 import { colors, spacing } from '@/theme/tokens';
 import type { AdherenceStatus, ReminderType, Treatment } from '@/types/domain';
 
@@ -142,6 +143,8 @@ function CheckinModalScreenContent() {
     setCelebratedStatus(status);
     // Outbox-first + optimistic: a estrela pode acender já (não esperamos a rede).
     checkin.mutate({ treatmentId: treatment.id, childId, status, note, replace: todayLog !== null });
+    // Ao fechar, a Hoje abre no filho que acabou de ser registrado.
+    useUiStore.getState().setActiveChildId(childId);
     setCelebrating(true);
   };
 

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Convite para o Lumi</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#f5f7f6;font-family:Arial,Helvetica,sans-serif;color:#1f2a2e;">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px;">
+      <p style="font-size:14px;color:#5b6b70;margin:0 0 16px;">Oftalmologia Alto de Pinheiros</p>
+      <h1 style="font-size:22px;margin:0 0 16px;">Olá{{ if .Data.display_name }}, {{ .Data.display_name }}{{ end }}!</h1>
+      <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">
+        A clínica convidou você para acompanhar o tratamento de controle da miopia pelo
+        aplicativo <strong>Lumi</strong>.
+      </p>
+      <p style="font-size:16px;line-height:1.5;margin:0 0 16px;">
+        Abra este e-mail <strong>no celular em que o Lumi está instalado</strong> e toque no botão
+        abaixo para criar a sua senha.
+      </p>
+      <p style="margin:24px 0;">
+        <a href="{{ .ConfirmationURL }}"
+           style="display:inline-block;background:#2f7d5b;color:#ffffff;text-decoration:none;font-size:16px;font-weight:bold;padding:14px 24px;border-radius:8px;">
+          Aceitar convite e criar senha
+        </a>
+      </p>
+      <p style="font-size:14px;line-height:1.5;color:#5b6b70;margin:0 0 8px;">
+        Se o link não abrir ou tiver expirado, peça à recepção da clínica um novo convite. Se você
+        já abriu o convite antes, use no app a opção Entrar › Esqueci minha senha.
+      </p>
+      <p style="font-size:14px;line-height:1.5;color:#5b6b70;margin:0;">
+        Não esperava este e-mail? Pode ignorá-lo: nenhuma conta será ativada sem você.
+      </p>
+    </div>
+  </body>
+</html>

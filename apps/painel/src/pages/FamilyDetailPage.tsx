@@ -7,7 +7,7 @@ import { useChildren, useCreateChild } from '@/hooks/useChildren';
 import { useFamily } from '@/hooks/useFamilies';
 import { TreatmentsSection } from '@/components/TreatmentsSection';
 import { MeasurementsSection } from '@/components/MeasurementsSection';
-import { toPtBr } from '@/lib/errors';
+import { errorCode, toPtBr } from '@/lib/errors';
 import { fmtDate, todayISO } from '@/lib/labels';
 
 function NewChildForm({ familyId }: { familyId: string }) {
@@ -81,7 +81,7 @@ function NewChildForm({ familyId }: { familyId: string }) {
 
 export function FamilyDetailPage() {
   const { familyId } = useParams<{ familyId: string }>();
-  const { data: family, isLoading: familyLoading } = useFamily(familyId);
+  const { data: family, isLoading: familyLoading, error: familyError } = useFamily(familyId);
   const { data: children, isLoading, error } = useChildren(familyId);
 
   if (!familyId) {
@@ -92,12 +92,29 @@ export function FamilyDetailPage() {
     );
   }
 
+  if (!family) {
+    return (
+      <main>
+        <p>
+          <Link to="/familias">&larr; Famílias</Link>
+        </p>
+        {familyLoading && !familyError ? (
+          <p>Carregando...</p>
+        ) : familyError && errorCode(familyError) !== '22P02' ? (
+          <p className="error">Erro ao carregar: {toPtBr(familyError)}</p>
+        ) : (
+          <p className="error">Família não encontrada.</p>
+        )}
+      </main>
+    );
+  }
+
   return (
     <main>
       <p>
         <Link to="/familias">&larr; Famílias</Link>
       </p>
-      <h1>{familyLoading ? 'Carregando...' : (family?.label ?? 'Família')}</h1>
+      <h1>{family.label}</h1>
 
       <NewChildForm familyId={familyId} />
 

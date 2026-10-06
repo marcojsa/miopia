@@ -62,7 +62,7 @@ export default function ChildProgressScreen() {
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
       {canGoBack ? (
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.dismissTo('/(app)/progress')}
           accessibilityRole="button"
           accessibilityLabel="Voltar para a lista de filhos"
           hitSlop={10}
@@ -113,7 +113,8 @@ export default function ChildProgressScreen() {
             <AxialLengthCard />
           </View>
 
-          {measurementsQuery.isRefetchError ? (
+          {measurementsQuery.isRefetchError ||
+          (measurementsQuery.failureCount > 0 && measurementsQuery.data !== undefined) ? (
             <AppText variant="meta" color={colors.ink2} style={styles.cardWrap}>
               Sem conexão. Mostrando a última versão salva.
             </AppText>

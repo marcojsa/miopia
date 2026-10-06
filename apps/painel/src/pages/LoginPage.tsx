@@ -20,9 +20,10 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const dest = (location.state as LocationState | null)?.from?.pathname ?? '/familias';
+
   // Já logado como staff: vai direto para o destino pretendido (ou famílias).
   if (!isLoading && session && staff) {
-    const dest = (location.state as LocationState | null)?.from?.pathname ?? '/familias';
     return <Navigate to={dest} replace />;
   }
 
@@ -32,7 +33,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await signIn(email, password);
-      navigate('/familias', { replace: true });
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(toPtBr(err, 'Não foi possível entrar. Verifique os dados.'));
     } finally {

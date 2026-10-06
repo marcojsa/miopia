@@ -18,6 +18,8 @@ export default function AuthLayout() {
   if (isLoading) return <BootScreen />; // aguardando sessão persistida do AsyncStorage
   // Conta da equipe não consente como responsável: o guard de (app) mostra o aviso.
   if (session && (!onConsent || staff.data === true)) return <Redirect href="/" />;
+  // Sem sessão o consentimento não tem o que carregar: volta à Welcome.
+  if (!session && onConsent) return <Redirect href="/(auth)/welcome" />;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

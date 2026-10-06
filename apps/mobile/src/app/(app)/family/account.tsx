@@ -25,18 +25,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AuthTextField } from '@/components/auth/AuthTextField';
+import { DeleteAccountCard } from '@/components/auth/DeleteAccountCard';
 import { ChevronIcon } from '@/components/icons';
 import { AppText, Button, Card, Screen, SectionHeader } from '@/components/ui';
 import { useChildren } from '@/hooks';
-import { signOutDoAparelho } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 
 // WhatsApp da clínica (Alto de Pinheiros).
 const CLINIC_WHATSAPP = 'https://wa.me/5511977235838';
-const CONFIRM_WORD = 'EXCLUIR';
 
 const LGPD_RIGHTS = [
   'Saber quais dados guardamos e por quê.',
@@ -44,11 +42,6 @@ const LGPD_RIGHTS = [
   'Corrigir uma informação errada.',
   'Retirar o consentimento e excluir sua conta deste app.',
 ];
-
-interface Status {
-  kind: 'error' | 'info';
-  text: string;
-}
 
 export default function AccountScreen() {
   const router = useRouter();
@@ -79,12 +72,7 @@ export default function AccountScreen() {
   );
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
-  const [confirmText, setConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [status, setStatus] = useState<Status | null>(null);
-
   const canGoBack = router.canGoBack();
-  const confirmMatches = confirmText.trim().toUpperCase() === CONFIRM_WORD;
 
   const openWhatsApp = async (): Promise<void> => {
     try {
@@ -99,45 +87,6 @@ export default function AccountScreen() {
       }
     } catch {
       Alert.alert('Não foi possível abrir o WhatsApp', 'Tente novamente em instantes.');
-    }
-  };
-
-  // 2ª confirmação (após digitar EXCLUIR): alerta nativo bloqueante.
-  const confirmDeletion = (): void => {
-    if (deleting || !confirmMatches) return;
-    Alert.alert(
-      'Excluir sua conta?',
-      'Esta ação não pode ser desfeita. Sua conta de acesso e os registros de cuidado deste app serão apagados. As medições das consultas permanecem no prontuário da clínica (exigência do CFM).',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir conta',
-          style: 'destructive',
-          onPress: () => {
-            void runDeletion();
-          },
-        },
-      ]
-    );
-  };
-
-  const runDeletion = async (): Promise<void> => {
-    setDeleting(true);
-    setStatus(null);
-    try {
-      const { error } = await supabase.functions.invoke('delete-account');
-      if (error) throw error;
-      // Conta apagada no servidor: sai deste aparelho e apaga os dados locais
-      // (cache, lembretes, fila de check-ins), mesmo se o servidor não responder.
-      await signOutDoAparelho();
-      // O guard do (app)/_layout redireciona ao detectar a sessão nula.
-    } catch {
-      setStatus({
-        kind: 'error',
-        text: 'Não foi possível concluir a exclusão agora. Verifique sua internet e tente de novo, ou fale com a clínica.',
-      });
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -298,61 +247,7 @@ export default function AccountScreen() {
             ) : null}
 
             <SectionHeader title="Excluir minha conta" style={styles.sectionHeader} />
-            <Card style={styles.dangerCard}>
-              <AppText variant="body" color={colors.ink} style={styles.dangerIntro}>
-                Ao excluir, apagamos sua conta de acesso e os registros de cuidado feitos por você
-                neste app.
-              </AppText>
-              <AppText variant="meta" color={colors.ink2} style={styles.dangerKeep}>
-                O que permanece: as medições e a evolução das consultas pertencem ao prontuário da
-                clínica e são mantidas por exigência do Conselho Federal de Medicina (CFM). A
-                exclusão da conta não apaga o prontuário.
-              </AppText>
-
-              {status ? (
-                <View style={styles.banner} accessibilityLiveRegion="polite">
-                  <AppText variant="meta" color={colors.ink}>
-                    {status.text}
-                  </AppText>
-                </View>
-              ) : null}
-
-              <AuthTextField
-                label={`Para confirmar, digite ${CONFIRM_WORD}`}
-                value={confirmText}
-                onChangeText={(text) => {
-                  setConfirmText(text);
-                  if (status) setStatus(null);
-                }}
-                placeholder={CONFIRM_WORD}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                editable={!deleting}
-                containerStyle={styles.confirmField}
-                accessibilityLabel={`Digite ${CONFIRM_WORD} para confirmar a exclusão`}
-              />
-
-              <Pressable
-                onPress={confirmDeletion}
-                disabled={!confirmMatches || deleting}
-                accessibilityRole="button"
-                accessibilityLabel="Excluir minha conta"
-                accessibilityState={{ disabled: !confirmMatches || deleting }}
-                style={({ pressed }) => [
-                  styles.deleteButton,
-                  !confirmMatches || deleting ? styles.deleteButtonDisabled : null,
-                  pressed && confirmMatches && !deleting ? styles.pressed : null,
-                ]}
-              >
-                {deleting ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
-                  <AppText variant="cardTitle" color={colors.white} style={styles.deleteLabel}>
-                    Excluir minha conta
-                  </AppText>
-                )}
-              </Pressable>
-            </Card>
+            <DeleteAccountCard />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -440,41 +335,5 @@ const styles = StyleSheet.create({
   },
   linkSub: {
     marginTop: 3,
-  },
-  dangerCard: {
-    borderWidth: 1.5,
-    borderColor: colors.coral,
-  },
-  dangerIntro: {
-    marginBottom: spacing.sm,
-  },
-  dangerKeep: {
-    marginBottom: spacing.md,
-  },
-  banner: {
-    backgroundColor: colors.white,
-    borderWidth: 1.5,
-    borderColor: colors.coral,
-    borderRadius: radii.cardSm,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginBottom: spacing.md,
-  },
-  confirmField: {
-    marginBottom: spacing.md,
-  },
-  deleteButton: {
-    backgroundColor: colors.coral,
-    borderRadius: radii.button,
-    minHeight: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.45,
-  },
-  deleteLabel: {
-    fontSize: 15,
   },
 });

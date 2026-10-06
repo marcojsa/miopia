@@ -64,14 +64,17 @@ function displayNameOf(metadata: Record<string, unknown> | undefined): string {
   return 'família';
 }
 
-// Subtítulo do chip do filho: tipo do 1º tratamento + horário do lembrete deste
-// aparelho (ex.: "colírio 20h30") — o mesmo horário em que a notificação toca.
+// Subtítulo do chip do filho: tipo de cada tratamento + horário do lembrete deste
+// aparelho (ex.: "lente 21h15 · colírio 20h30") — o mesmo horário em que a notificação toca.
 function chipSubtitle(treatments: Treatment[], prefs: ReminderPref[]): string | null {
-  const t = treatments[0];
-  if (!t) return null;
-  const time = reminderTimeLabel(t, prefs);
-  const word = t.type === 'ortho_k' ? 'lente' : t.type === 'atropina' ? 'colírio' : 'cuidado';
-  return time ? `${word} ${time}` : word;
+  if (treatments.length === 0) return null;
+  return treatments
+    .map((t) => {
+      const time = reminderTimeLabel(t, prefs);
+      const word = t.type === 'ortho_k' ? 'lente' : t.type === 'atropina' ? 'colírio' : 'cuidado';
+      return time ? `${word} ${time}` : word;
+    })
+    .join(' · ');
 }
 
 export default function TodayScreen() {
@@ -181,6 +184,8 @@ export default function TodayScreen() {
   // A estrela só acende se TODOS os cuidados da noite foram feitos.
   const allFeito = allAnswered && scheduledTreatments.every((t) => todayLogs.get(t.id)?.status === 'feito');
   const paused = pausedQuery.data?.paused === true;
+  // Noite já feita antes de ligar a pausa continua estrela: mostra o "Noite registrada".
+  const showPause = paused && !allFeito && !isCorrecting;
 
   // Gamificação (adesão do filho ativo). starts_on = o mais antigo dos tratamentos
   // ativos, para a simulação cobrir todo o período de cuidado (bate com o céu).
@@ -359,7 +364,7 @@ export default function TodayScreen() {
 
         <SectionHeader title="Esta noite" />
 
-        {paused && scheduledTreatments.length > 0 ? (
+        {showPause && scheduledTreatments.length > 0 ? (
           <EmptyState
             icon={<LumiOwl size={72} />}
             title={`${childName} está em pausa (férias)`}
@@ -379,7 +384,7 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        {(paused ? [] : pendingTreatments).map((t) => (
+        {(showPause ? [] : pendingTreatments).map((t) => (
           <TaskCard
             key={t.id}
             type={t.type}
@@ -392,7 +397,7 @@ export default function TodayScreen() {
           />
         ))}
 
-        {!paused && allAnswered ? (
+        {!showPause && allAnswered ? (
           <NightDoneCard
             childName={childName}
             variant={allFeito ? 'feito' : 'pulado'}

@@ -12,7 +12,7 @@
 // (status). NÃO calcula risco, NÃO emite juízo. O EE (od_se/oe_se) é GENERATED
 // no banco — NÃO é enviado no insert. recorded_by = auth.uid() do staff logado.
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { useChild } from '@/hooks/useChildren';
 import {
@@ -49,7 +49,7 @@ export function NewMeasurementPage() {
   const { childId, measurementId } = useParams<{ childId: string; measurementId?: string }>();
   const isEdit = !!measurementId;
   const navigate = useNavigate();
-  const { data: child } = useChild(childId);
+  const { data: child, isLoading: childLoading, error: childError } = useChild(childId);
   const createMeasurement = useCreateMeasurement(childId ?? '');
   const updateMeasurement = useUpdateMeasurement(childId ?? '');
   const saving = createMeasurement.isPending || updateMeasurement.isPending;
@@ -91,6 +91,25 @@ export function NewMeasurementPage() {
     return (
       <main>
         <p className="error">Criança não informada.</p>
+      </main>
+    );
+  }
+
+  if (!child) {
+    return (
+      <main>
+        {childLoading && !childError ? (
+          <p>Carregando...</p>
+        ) : childError && errorCode(childError) !== '22P02' ? (
+          <p className="error">Erro ao carregar: {toPtBr(childError)}</p>
+        ) : (
+          <>
+            <p className="error">Criança não encontrada.</p>
+            <p>
+              <Link to="/familias">&larr; Famílias</Link>
+            </p>
+          </>
+        )}
       </main>
     );
   }

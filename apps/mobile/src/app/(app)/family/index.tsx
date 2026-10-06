@@ -105,7 +105,11 @@ export default function FamilyIndexScreen() {
           />
         ) : (
           children.map((child) => {
-            const treatment = treatments.find((t) => t.child_id === child.id);
+            const childTreatments = treatments.filter((t) => t.child_id === child.id);
+            const regime =
+              childTreatments.length > 0
+                ? childTreatments.map((t) => regimeSummary(t, prefs)).join(', ')
+                : regimeSummary(undefined, prefs);
             const age = ageLabel(child.birth_date);
             return (
               <Pressable
@@ -131,7 +135,7 @@ export default function FamilyIndexScreen() {
                       {age ? `${child.first_name}, ${age}` : child.first_name}
                     </AppText>
                     <AppText variant="meta" color={colors.ink2} style={styles.childRegime}>
-                      {regimeSummary(treatment, prefs)}
+                      {regime}
                     </AppText>
                   </View>
                   <ChevronIcon direction="right" color={colors.ink3} size={20} />

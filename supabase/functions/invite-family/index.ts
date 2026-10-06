@@ -19,6 +19,10 @@
 // nada é apagado: o guardian é mantido, o prazo do convite é renovado e a
 // resposta é 200 { resent: true }.
 //
+// Link do convite já aberto sem senha criada: o GoTrue não reenvia convite para
+// e-mail confirmado; a função manda então um link de criação de senha (recovery)
+// e também responde 200 { resent: true }.
+//
 // Respostas: 201 criado · 200 reenviado · 400 corpo inválido · 401 sem/JWT
 // inválido · 403 não-staff · 404 família inexistente · 405 método · 409 e-mail
 // já cadastrado ou família já com responsável principal · 500 erro interno
@@ -204,10 +208,43 @@ Deno.serve(async (req: Request): Promise<Response> => {
       redirectTo,
     });
   if (inviteError || !invited?.user) {
-    await rollback();
     const alreadyExists =
       inviteError?.status === 422 ||
       /already.*(registered|exists)/i.test(inviteError?.message ?? "");
+
+    // Convite pendente cujo link já foi aberto (e-mail confirmado no GET /verify)
+    // mas sem senha criada: o GoTrue recusa o reenvio do convite. Manda um link
+    // de criação de senha (recovery) para o mesmo destino do convite.
+    if (alreadyExists && pendingInvite) {
+      const { error: recoverError } = await admin.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      if (recoverError) {
+        return jsonResponse(500, { error: "invite_failed", detail: recoverError.message });
+      }
+      const { data: renewed, error: renewError } = await admin
+        .from("family_invites")
+        .update({
+          invited_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .eq("id", pendingInvite.id)
+        .select("id, expires_at")
+        .single();
+      if (renewError || !renewed) {
+        return jsonResponse(500, { error: "invite_log_failed", detail: renewError?.message });
+      }
+      return jsonResponse(200, {
+        family_id: familyId,
+        family_created: false,
+        invited_user_id: null,
+        invite_id: renewed.id,
+        expires_at: renewed.expires_at,
+        resent: true,
+      });
+    }
+
+    await rollback();
     return jsonResponse(alreadyExists ? 409 : 500, {
       error: alreadyExists ? "email_already_registered" : "invite_failed",
       detail: inviteError?.message,

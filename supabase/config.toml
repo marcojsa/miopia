@@ -255,7 +255,7 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
-secure_password_change = false
+secure_password_change = true
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 # Number of characters used in the email OTP.
@@ -277,10 +277,15 @@ otp_expiry = 3600
 # admin_email = "contato@clinica-dominio.com.br"  # remetente verificado no Resend
 # sender_name = "Oftalmologia Alto de Pinheiros"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Templates em pt-BR (o padrão do GoTrue é em inglês e cita o site_url do painel).
+# Na nuvem, colar os mesmos arquivos em Authentication > Email Templates.
+[auth.email.template.invite]
+subject = "Convite da clínica para o app Lumi"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.recovery]
+subject = "Lumi: criar nova senha"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

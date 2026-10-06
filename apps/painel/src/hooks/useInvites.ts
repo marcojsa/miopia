@@ -14,7 +14,7 @@ export interface InviteInput {
 export interface InviteResult {
   family_id: string;
   family_created: boolean;
-  invited_user_id: string;
+  invited_user_id: string | null;
   invite_id: string;
   expires_at: string;
   /** true quando era um convite pendente e o e-mail foi apenas reenviado. */
@@ -22,7 +22,8 @@ export interface InviteResult {
 }
 
 const INVITE_ERRORS: Record<string, string> = {
-  email_already_registered: 'Este e-mail já tem conta ativa no app.',
+  email_already_registered:
+    'Este e-mail já tem conta no app. Se a pessoa não consegue entrar, peça que use Entrar › Esqueci minha senha no app.',
   primary_already_set:
     'Esta família já tem um responsável principal. Desmarque "Responsável principal" e envie de novo.',
   family_not_found: 'Família não encontrada.',

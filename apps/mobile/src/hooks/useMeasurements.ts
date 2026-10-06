@@ -7,14 +7,19 @@ import { supabase } from '@/lib/supabase';
 import type { Measurement } from '@/types/domain';
 import { queryKeys } from './keys';
 
+const MINUTE = 60 * 1000;
+
 /**
  * Medições de UMA criança, mais recente primeiro (measured_on DESC).
- * staleTime default (12h): muda 2-3x/ano; abre offline via cache persistido.
+ * staleTime curto: consulta lançada (ou excluída) pela clínica precisa aparecer ao
+ * reabrir a tela/app. O cache persistido continua abrindo na hora e offline; a
+ * revalidação roda em segundo plano.
  */
 export function useMeasurements(childId: string): UseQueryResult<Measurement[]> {
   return useQuery({
     queryKey: queryKeys.measurements(childId),
     enabled: childId.length > 0,
+    staleTime: 5 * MINUTE,
     queryFn: async (): Promise<Measurement[]> => {
       const { data, error } = await supabase
         .from('measurements')

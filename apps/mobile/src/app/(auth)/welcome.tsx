@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MoonIcon, StarIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, Screen } from '@/components/ui';
+import { useUiStore } from '@/stores/ui';
 import { colors, fonts, gradients, radii, spacing } from '@/theme/tokens';
 
 // Estrelas decorativas do céu (douradas e prateadas, como no céu da criança).
@@ -35,6 +36,8 @@ const SKY_STARS: readonly SkyStarSpec[] = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const notice = useUiStore((s) => s.welcomeNotice);
+  const dismissNotice = (): void => useUiStore.setState({ welcomeNotice: null });
 
   return (
     <Screen background={colors.purple950} edges={[]}>
@@ -89,9 +92,26 @@ export default function WelcomeScreen() {
         </View>
 
         <View>
+          {notice ? (
+            <View style={styles.notice} accessibilityLiveRegion="polite">
+              <AppText style={styles.noticeText}>{notice}</AppText>
+              <Pressable
+                onPress={dismissNotice}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar aviso"
+                hitSlop={8}
+                style={({ pressed }) => [styles.noticeClose, pressed ? styles.ctaPressed : null]}
+              >
+                <AppText style={styles.noticeCloseLabel}>Entendi</AppText>
+              </Pressable>
+            </View>
+          ) : null}
           <AppText style={styles.signature}>Oftalmologia Alto de Pinheiros</AppText>
           <Pressable
-            onPress={() => router.push('/(auth)/sign-in')}
+            onPress={() => {
+              dismissNotice();
+              router.push('/(auth)/sign-in');
+            }}
             accessibilityRole="button"
             accessibilityLabel="Entrar"
             style={({ pressed }) => [styles.cta, pressed ? styles.ctaPressed : null]}
@@ -106,6 +126,28 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: radii.cardSm,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: spacing.lg,
+  },
+  noticeText: {
+    fontFamily: fonts.interMedium,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: colors.white,
+  },
+  noticeClose: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.sm,
+  },
+  noticeCloseLabel: {
+    fontFamily: fonts.nunitoExtraBold,
+    fontSize: 13.5,
+    color: colors.white,
+  },
   content: {
     flex: 1,
     paddingHorizontal: spacing.headerX,

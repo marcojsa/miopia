@@ -3,14 +3,16 @@
 // cards (avatar + nome + regime). NENHUM dado clínico aqui — só nome e regime.
 // ANVISA RDC 657/2022: a interpretação clínica vive só no dashboard, no texto
 // da médica; esta tela não exibe nem julga medida nenhuma.
+import { useQueryClient } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChildSelectorCard, regimeLabel } from '@/components/progresso';
 import { AppText, EmptyState, Screen } from '@/components/ui';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
-import { useChildren, useTreatments } from '@/hooks';
+import { queryKeys, useChildren, useTreatments } from '@/hooks';
 import { useUiStore } from '@/stores/ui';
 import { colors, spacing } from '@/theme/tokens';
 
@@ -18,11 +20,25 @@ export default function ProgressIndexScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setActiveChildId = useUiStore((s) => s.setActiveChildId);
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
 
   const childrenQuery = useChildren();
   const treatmentsQuery = useTreatments();
 
   const children = childrenQuery.data ?? [];
+
+  const onRefresh = async (): Promise<void> => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.children }),
+        queryClient.invalidateQueries({ queryKey: ['treatments'] }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (childrenQuery.isLoading) {
     return (
@@ -81,6 +97,15 @@ export default function ProgressIndexScreen() {
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void onRefresh();
+            }}
+            tintColor={colors.purple}
+          />
+        }
       >
         <AppText variant="title" accessibilityRole="header" style={styles.title}>
           Evolução

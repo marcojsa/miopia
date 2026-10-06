@@ -5,6 +5,7 @@
 // Honestidade técnica: no Expo Go a entrega de notificações difere do app final
 // (sandbox compartilhado), então avisamos explicitamente. Sem libs nativas extras
 // (compatível com Expo Go): usamos só expo-notifications, já instalado.
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -21,6 +22,9 @@ interface Step {
   title: string;
   body: string;
 }
+
+// Só no Expo Go (storeClient) o aviso de "modo de teste" faz sentido; no APK/loja, não.
+const IS_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const STEPS: Step[] = [
   {
@@ -195,16 +199,18 @@ export default function NotificationsHelpScreen() {
             ) : null}
           </View>
 
-          <Card style={styles.expoNote}>
-            <AppText variant="meta" color={colors.ink2}>
-              Importante: enquanto o app roda em modo de teste (Expo Go), a entrega das notificações
-              pode diferir da versão final publicada. No app instalado pela loja, os lembretes são
-              mais confiáveis.
-              {Platform.OS === 'ios'
-                ? ' No iPhone, basta manter as notificações do Lumi ativadas.'
-                : ''}
-            </AppText>
-          </Card>
+          {IS_EXPO_GO ? (
+            <Card style={styles.expoNote}>
+              <AppText variant="meta" color={colors.ink2}>
+                Importante: enquanto o app roda em modo de teste (Expo Go), a entrega das notificações
+                pode diferir da versão final publicada. No app instalado pela loja, os lembretes são
+                mais confiáveis.
+                {Platform.OS === 'ios'
+                  ? ' No iPhone, basta manter as notificações do Lumi ativadas.'
+                  : ''}
+              </AppText>
+            </Card>
+          ) : null}
         </View>
       </ScrollView>
     </Screen>

@@ -7,7 +7,13 @@ import type { Child } from '@/types/domain';
 import { queryKeys } from './keys';
 import { useIsStaff } from './useIsStaff';
 
-/** Crianças NÃO arquivadas da família, ordenadas por first_name. */
+const MINUTE = 60 * 1000;
+
+/**
+ * Crianças NÃO arquivadas da família, ordenadas por first_name. staleTime curto:
+ * filho cadastrado pela clínica precisa aparecer (e passar pelo consentimento)
+ * ao reabrir o app, não horas depois.
+ */
 export function useChildren(): UseQueryResult<Child[]> {
   const { session } = useSession();
   const staff = useIsStaff();
@@ -17,6 +23,7 @@ export function useChildren(): UseQueryResult<Child[]> {
     // enxergaria todas as crianças da clínica: não carrega. Se a checagem de staff
     // falhar (offline), segue para não trancar o responsável.
     enabled: Boolean(session) && !staff.isLoading && staff.data !== true,
+    staleTime: 5 * MINUTE,
     queryFn: async (): Promise<Child[]> => {
       const { data, error } = await supabase
         .from('children')

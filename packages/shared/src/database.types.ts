@@ -331,6 +331,44 @@ export type Database = {
           },
         ]
       }
+      measurement_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          child_id: string
+          id: string
+          measurement_id: string
+          old_row: Json
+          operation: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          child_id: string
+          id?: string
+          measurement_id: string
+          old_row: Json
+          operation: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          child_id?: string
+          id?: string
+          measurement_id?: string
+          old_row?: Json
+          operation?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "measurement_history_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       measurements: {
         Row: {
           child_id: string
@@ -348,6 +386,8 @@ export type Database = {
           oe_sphere: number | null
           recorded_by: string
           status: Database["public"]["Enums"]["clinical_status"]
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           child_id: string
@@ -365,6 +405,8 @@ export type Database = {
           oe_sphere?: number | null
           recorded_by: string
           status?: Database["public"]["Enums"]["clinical_status"]
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           child_id?: string
@@ -382,6 +424,8 @@ export type Database = {
           oe_sphere?: number | null
           recorded_by?: string
           status?: Database["public"]["Enums"]["clinical_status"]
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -394,6 +438,13 @@ export type Database = {
           {
             foreignKeyName: "measurements_recorded_by_fkey"
             columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "measurements_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "staff"
             referencedColumns: ["user_id"]

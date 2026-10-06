@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthTextField } from '@/components/auth/AuthTextField';
+import { DeleteAccountCard } from '@/components/auth/DeleteAccountCard';
 import {
   ConsentChildPill,
   ConsentLayer,
@@ -36,6 +37,7 @@ import { CheckIcon, ChevronIcon } from '@/components/icons';
 import { AppText, Button, Screen } from '@/components/ui';
 import { useChildren, type ConsentPendingResult } from '@/hooks';
 import { queryKeys } from '@/hooks/keys';
+import { signOutDoAparelho } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
 import { colors, fonts, gradients, radii, spacing } from '@/theme/tokens';
@@ -129,6 +131,8 @@ export default function ConsentScreen() {
   const [showFullTerm, setShowFullTerm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const guardianRef = useRef<TextInput>(null);
 
   // ── Carga: termo ativo + consentimentos já dados pelo responsável ──────────
@@ -281,6 +285,18 @@ export default function ConsentScreen() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Quem não quer autorizar (ou acabou de retirar a autorização) precisa de saída:
+  // sair desta conta ou excluí-la, sem passar pelas abas.
+  const handleSignOut = async (): Promise<void> => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOutDoAparelho();
+    } finally {
+      setSigningOut(false);
     }
   };
 
@@ -466,6 +482,32 @@ export default function ConsentScreen() {
                 </View>
               </>
             ) : null}
+
+            <View style={styles.exit}>
+              <Button
+                label="Agora não, sair desta conta"
+                variant="ghost"
+                onPress={() => {
+                  void handleSignOut();
+                }}
+                loading={signingOut}
+                disabled={submitting}
+                accessibilityLabel="Agora não, sair desta conta"
+              />
+              <Pressable
+                onPress={() => setShowDelete((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showDelete }}
+                accessibilityLabel="Excluir minha conta"
+                style={({ pressed }) => [styles.readFull, pressed ? styles.pressedDim : null]}
+              >
+                <AppText variant="meta" color={colors.ink2} style={styles.readFullText}>
+                  Excluir minha conta
+                </AppText>
+                <ChevronIcon direction={showDelete ? 'up' : 'down'} color={colors.ink2} size={16} />
+              </Pressable>
+              {showDelete ? <DeleteAccountCard /> : null}
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       )}
@@ -476,6 +518,9 @@ export default function ConsentScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  exit: {
+    marginTop: spacing.xl,
   },
   header: {
     paddingHorizontal: spacing.headerX,
