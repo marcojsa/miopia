@@ -26,8 +26,8 @@ import {
 import { XIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, EmptyState, Screen } from '@/components/ui';
-import { isScheduledOn } from '@/components/hoje/hojeHelpers';
-import { ALL_HISTORY, useAdherenceLogs, useChildren, usePausedDates, useTreatments } from '@/hooks';
+import { dueCareCount } from '@/components/hoje/hojeHelpers';
+import { ALL_HISTORY, useAdherenceLogs, useChildren, usePausedDates, useTreatmentHistory } from '@/hooks';
 import { localDateString } from '@/lib/date';
 import {
   computeShields,
@@ -75,15 +75,16 @@ function CeuScreenContent() {
   }, [children, activeChildId]);
   const childId = child?.id ?? '';
 
-  const treatmentsQuery = useTreatments(childId || undefined);
+  // Ativos e encerrados: as noites de um regime trocado continuam devidas.
+  const treatmentsQuery = useTreatmentHistory(childId);
   const pausedQuery = usePausedDates(childId);
 
   const today = localDateString();
   const monthYM = today.slice(0, 7); // 'YYYY-MM'
   const monthLabel = MONTH_NAMES[Number(monthYM.slice(5, 7)) - 1];
 
-  // starts_on = o mais antigo dos tratamentos ativos (mesma base da Hoje, p/
-  // o céu bater com a meta da semana e os escudos).
+  // starts_on = o mais antigo dos tratamentos da criança (mesma base da Hoje,
+  // p/ o céu bater com a meta da semana e os escudos).
   const startsOn = useMemo(() => {
     const list = treatmentsQuery.data ?? [];
     if (list.length === 0) return undefined;
@@ -97,15 +98,15 @@ function CeuScreenContent() {
     treatmentsQuery.data === undefined ? null : ALL_HISTORY
   );
 
-  // Noite devida = algum tratamento ativo programado (dias da semana, ends_on).
+  // Noite devida = algum tratamento, ativo ou encerrado, programado nela.
   const isDue = useMemo(() => {
     const list = treatmentsQuery.data ?? [];
-    return (date: string) => list.some((t) => isScheduledOn(t, date));
+    return (date: string) => dueCareCount(list, date) > 0;
   }, [treatmentsQuery.data]);
   // Cuidados programados na noite: a estrela só acende com um 'feito' para cada.
   const dueCount = useMemo(() => {
     const list = treatmentsQuery.data ?? [];
-    return (date: string) => list.filter((t) => isScheduledOn(t, date)).length;
+    return (date: string) => dueCareCount(list, date);
   }, [treatmentsQuery.data]);
 
   const logs = adherenceQuery.data ?? [];

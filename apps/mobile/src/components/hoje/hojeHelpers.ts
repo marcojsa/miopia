@@ -110,3 +110,52 @@ export function isScheduledToday(
 export function isScheduledOn(treatment: Treatment, ymd: string): boolean {
   return isScheduledToday(treatment, ymd, weekdayOfYMD(ymd));
 }
+
+/**
+ * O tratamento (ativo ou encerrado) tinha cuidado devido na noite `ymd`, para o
+ * histórico do céu e dos escudos? O encerrado vale até a véspera do ends_on: o
+ * "Encerrar" grava o dia do encerramento e a Hoje deixa de mostrá-lo na hora.
+ */
+export function wasScheduledOn(treatment: Treatment, ymd: string): boolean {
+  if (!treatment.active && treatment.ends_on !== null && treatment.ends_on <= ymd) return false;
+  return isScheduledOn(treatment, ymd);
+}
+
+/**
+ * Cuidados devidos na noite `ymd`, um por tipo: na noite da troca de regime o
+ * encerrado e o novo do mesmo tipo não contam em dobro.
+ */
+export function dueCareCount(treatments: Treatment[], ymd: string): number {
+  const types = new Set<TreatmentType>();
+  for (const t of treatments) if (wasScheduledOn(t, ymd)) types.add(t.type);
+  return types.size;
+}
+
+/**
+ * O tratamento ativo vale na noite em curso `todayYMD` (data lógica)? Além da
+ * janela normal, cobre a troca feita de madrugada: o regime que começa hoje no
+ * calendário (`calendarYMD`) e substitui outro do mesmo tipo encerrado hoje
+ * vale já na noite de ontem, que segue em curso até as 04h. Mesma regra de
+ * private.carry_adherence_logs e private.redirect_adherence_to_active no banco.
+ */
+export function isScheduledTonight(
+  treatment: Treatment,
+  history: Treatment[],
+  todayYMD: string,
+  calendarYMD: string
+): boolean {
+  if (isScheduledOn(treatment, todayYMD)) return true;
+  if (!treatment.active || treatment.starts_on <= todayYMD || treatment.starts_on > calendarYMD) {
+    return false;
+  }
+  const replaces = history.some(
+    (prev) =>
+      prev.id !== treatment.id &&
+      !prev.active &&
+      prev.child_id === treatment.child_id &&
+      prev.type === treatment.type &&
+      prev.ends_on !== null &&
+      prev.ends_on >= calendarYMD
+  );
+  return replaces && isScheduledOn({ ...treatment, starts_on: todayYMD }, todayYMD);
+}

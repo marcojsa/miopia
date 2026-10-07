@@ -2,7 +2,7 @@
 export { queryKeys } from './keys';
 export { useChildren } from './useChildren';
 export { useIsStaff } from './useIsStaff';
-export { useTreatments } from './useTreatments';
+export { useTreatments, useTreatmentHistory } from './useTreatments';
 export {
   useTodayAdherence,
   useAdherenceLogs,

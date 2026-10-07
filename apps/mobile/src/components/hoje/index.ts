@@ -12,4 +12,7 @@ export {
   taskInstruction,
   isScheduledToday,
   isScheduledOn,
+  isScheduledTonight,
+  wasScheduledOn,
+  dueCareCount,
 } from './hojeHelpers';

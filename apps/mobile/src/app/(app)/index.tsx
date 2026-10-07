@@ -19,9 +19,9 @@ import {
   SkyTeaserCard,
   TaskCard,
   WeekGoalCard,
+  dueCareCount,
   greetingForHour,
-  isScheduledOn,
-  isScheduledToday,
+  isScheduledTonight,
   longDatePtBR,
   taskInstruction,
   taskTitle,
@@ -41,11 +41,12 @@ import {
   usePausedDates,
   useReminderPrefs,
   useTodayAdherence,
+  useTreatmentHistory,
   useTreatments,
 } from '@/hooks';
 import { requestNotificationPermission } from '@/lib/notifications/permission';
 import { flushOutbox } from '@/lib/outbox';
-import { localDateString, parseLocalYMD, weekdayOfYMD } from '@/lib/date';
+import { formatLocalYMD, localDateString, parseLocalYMD } from '@/lib/date';
 import {
   computeShields,
   computeStreakAndMilestones,
@@ -109,10 +110,9 @@ export default function TodayScreen() {
   );
 
   const now = new Date();
+  // Data lógica da noite (corte 04h): às 00h30 de sábado a noite ainda é a de sexta.
   const today = localDateString(now);
-  // Dia da semana da NOITE exibida (data lógica, corte 04h), não do relógio:
-  // às 00h30 de sábado a noite ainda é a de sexta.
-  const weekday = weekdayOfYMD(today);
+  const calendarToday = formatLocalYMD(now);
 
   const childrenQuery = useChildren();
   const allTreatmentsQuery = useTreatments(); // todos da família (para os subtítulos dos chips)
@@ -121,6 +121,8 @@ export default function TodayScreen() {
   const notifications = useNotificationPermission();
 
   const childTreatmentsQuery = useTreatments(activeChildId ?? undefined);
+  // Ativos e encerrados: histórico da gamificação e troca de regime de madrugada.
+  const historyQuery = useTreatmentHistory(activeChildId ?? '');
   const pausedQuery = usePausedDates(activeChildId ?? '');
 
   const checkin = useCheckinMutation();
@@ -163,11 +165,13 @@ export default function TodayScreen() {
     }));
   }, [children, allTreatmentsQuery.data, prefs, pausedIds]);
 
-  // Tratamentos do filho ativo agendados para hoje.
+  // Tratamentos do filho ativo agendados para a noite em curso.
   const scheduledTreatments = useMemo(
     () =>
-      (childTreatmentsQuery.data ?? []).filter((t) => isScheduledToday(t, today, weekday)),
-    [childTreatmentsQuery.data, today, weekday]
+      (childTreatmentsQuery.data ?? []).filter((t) =>
+        isScheduledTonight(t, historyQuery.data ?? [], today, calendarToday)
+      ),
+    [childTreatmentsQuery.data, historyQuery.data, today, calendarToday]
   );
 
   // Logs de HOJE do filho ativo (qualquer status conta como "respondido").
@@ -218,30 +222,31 @@ export default function TodayScreen() {
   const showPause = paused && !allFeito && !isCorrecting;
 
   // Gamificação (adesão do filho ativo). starts_on = o mais antigo dos tratamentos
-  // ativos, para a simulação cobrir todo o período de cuidado (bate com o céu).
+  // da criança, ativos ou encerrados, para a simulação cobrir todo o período de
+  // cuidado (bate com o céu).
   const startsOn = useMemo(() => {
-    const list = childTreatmentsQuery.data ?? [];
+    const list = historyQuery.data ?? [];
     if (list.length === 0) return undefined;
     return list.reduce((min, t) => (t.starts_on < min ? t.starts_on : min), list[0].starts_on);
-  }, [childTreatmentsQuery.data]);
+  }, [historyQuery.data]);
 
   // Histórico inteiro (a troca de regime não pode apagar as noites anteriores);
   // espera os tratamentos, que dizem quais noites eram devidas.
   const adherenceQuery = useAdherenceLogs(
     activeChildId ?? '',
-    childTreatmentsQuery.data === undefined ? null : ALL_HISTORY
+    historyQuery.data === undefined ? null : ALL_HISTORY
   );
 
-  // Noite devida = algum tratamento ativo programado (dias da semana, ends_on).
+  // Noite devida = algum tratamento, ativo ou encerrado, programado nela.
   const isDue = useMemo(() => {
-    const list = childTreatmentsQuery.data ?? [];
-    return (date: string) => list.some((t) => isScheduledOn(t, date));
-  }, [childTreatmentsQuery.data]);
+    const list = historyQuery.data ?? [];
+    return (date: string) => dueCareCount(list, date) > 0;
+  }, [historyQuery.data]);
   // Cuidados programados na noite: a estrela só acende com um 'feito' para cada.
   const dueCount = useMemo(() => {
-    const list = childTreatmentsQuery.data ?? [];
-    return (date: string) => list.filter((t) => isScheduledOn(t, date)).length;
-  }, [childTreatmentsQuery.data]);
+    const list = historyQuery.data ?? [];
+    return (date: string) => dueCareCount(list, date);
+  }, [historyQuery.data]);
 
   const logs = adherenceQuery.data ?? [];
   const pausedDates = pausedQuery.data?.pausedDates ?? [];
@@ -269,6 +274,7 @@ export default function TodayScreen() {
         childrenQuery.refetch(),
         allTreatmentsQuery.refetch(),
         childTreatmentsQuery.refetch(),
+        historyQuery.refetch(),
       ]);
     } finally {
       setRefreshing(false);

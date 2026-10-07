@@ -6,6 +6,8 @@ export const queryKeys = {
   isStaff: (userId: string | null) => ['is-staff', userId ?? 'anon'] as const,
   /** Sem childId usa o sentinela 'all' (todos os tratamentos ativos da família). */
   treatments: (childId?: string) => ['treatments', childId ?? 'all'] as const,
+  /** Todos os tratamentos da criança, ativos e encerrados (histórico de noites devidas). */
+  treatmentHistory: (childId: string) => ['treatments', childId, 'history'] as const,
   /** Check-ins de UMA data lógica (corte 04h): a data entra na key para não servir ontem como hoje. */
   adherenceToday: (date: string) => ['adherence', 'today', date] as const,
   /** Prefixo do histórico da criança; a query completa acrescenta a data inicial. */

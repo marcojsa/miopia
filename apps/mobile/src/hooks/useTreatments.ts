@@ -38,3 +38,24 @@ export function useTreatments(childId?: string): UseQueryResult<Treatment[]> {
     },
   });
 }
+
+/**
+ * Todos os tratamentos de um filho, inclusive os encerrados. Só para o histórico
+ * da gamificação: as noites de um regime trocado continuam devidas até o fim dele.
+ */
+export function useTreatmentHistory(childId: string): UseQueryResult<Treatment[]> {
+  return useQuery({
+    queryKey: queryKeys.treatmentHistory(childId),
+    enabled: childId !== '',
+    staleTime: 15 * MINUTE,
+    queryFn: async (): Promise<Treatment[]> => {
+      const { data, error } = await supabase
+        .from('treatments')
+        .select('id, child_id, type, instructions, suggested_time, days_of_week, starts_on, ends_on, active')
+        .eq('child_id', childId)
+        .order('starts_on', { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}

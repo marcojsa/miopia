@@ -32,9 +32,19 @@ const STAR_FOR_STATE: Record<Exclude<WeekDayState, 'cloud'>, StarIconVariant> = 
   off: 'empty',
 };
 
+const MARK_SIZE = 20;
+
+// Caixa fixa: a nuvem é mais baixa que a estrela e desalinharia o rótulo do dia.
 function DayMark({ state }: { state: WeekDayState }) {
-  if (state === 'cloud') return <CloudIcon size={20} />;
-  return <StarIcon size={20} variant={STAR_FOR_STATE[state]} />;
+  return (
+    <View style={styles.mark}>
+      {state === 'cloud' ? (
+        <CloudIcon size={MARK_SIZE} />
+      ) : (
+        <StarIcon size={MARK_SIZE} variant={STAR_FOR_STATE[state]} />
+      )}
+    </View>
+  );
 }
 
 function nightWord(n: number): string {
@@ -136,6 +146,12 @@ const styles = StyleSheet.create({
   day: {
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  mark: {
+    width: MARK_SIZE,
+    height: MARK_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayLabel: {
     fontFamily: fonts.interSemiBold,

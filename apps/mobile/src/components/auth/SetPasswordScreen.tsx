@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthTextField } from '@/components/auth/AuthTextField';
 import { AppText, Button, Card, Screen } from '@/components/ui';
 import { parseAuthLink } from '@/lib/authLink';
+import { signOutDoAparelho } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
 import { colors, gradients, radii, spacing } from '@/theme/tokens';
@@ -65,6 +66,9 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Convite: Cancelar pede confirmação e encerra a sessão aberta pelo link.
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const handledUrl = useRef<string | null>(null);
   const mounted = useRef(true);
   const sessionRef = useRef(session);
@@ -161,6 +165,28 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
     }
   };
 
+  const handleCancel = (): void => {
+    if (mode === 'convite') {
+      setConfirmCancel(true);
+      return;
+    }
+    linkSessionUserId = null;
+    router.replace('/');
+  };
+
+  // O link do convite já foi usado: sem senha, a pessoa não entra de novo.
+  const leaveWithoutPassword = async (): Promise<void> => {
+    if (leaving) return;
+    setLeaving(true);
+    linkSessionUserId = null;
+    try {
+      await signOutDoAparelho();
+    } finally {
+      if (mounted.current) setLeaving(false);
+      router.replace('/(auth)/welcome');
+    }
+  };
+
   return (
     <Screen edges={['left', 'right']}>
       <LinearGradient
@@ -201,6 +227,29 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
                 label="Ir para Entrar"
                 onPress={() => router.replace('/(auth)/welcome')}
                 style={styles.submit}
+              />
+            </Card>
+          ) : confirmCancel ? (
+            <Card>
+              <AppText variant="body" color={colors.ink}>
+                Sem criar a senha, você não consegue entrar no app depois. O link do convite já foi
+                usado: para criar a senha mais tarde, use Entrar › Esqueci minha senha com este
+                e-mail ou peça um novo convite à recepção da clínica.
+              </AppText>
+              <Button
+                label="Voltar e criar a senha"
+                onPress={() => setConfirmCancel(false)}
+                disabled={leaving}
+                style={styles.submit}
+              />
+              <Button
+                label="Sair sem criar senha"
+                variant="ghost"
+                loading={leaving}
+                onPress={() => {
+                  void leaveWithoutPassword();
+                }}
+                style={styles.cancel}
               />
             </Card>
           ) : (
@@ -269,10 +318,7 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
                   label="Cancelar"
                   variant="ghost"
                   disabled={saving}
-                  onPress={() => {
-                    linkSessionUserId = null;
-                    router.replace('/');
-                  }}
+                  onPress={handleCancel}
                   style={styles.cancel}
                 />
               </Card>
