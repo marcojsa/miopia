@@ -2,14 +2,14 @@
 import { useState, type FormEvent } from 'react';
 
 import { useCreateTreatment, useEndTreatment, useTreatments } from '@/hooks/useTreatments';
-import type { TreatmentType } from '@/types/database';
+import type { Treatment, TreatmentType } from '@/types/database';
 import { errorCode, toPtBr } from '@/lib/errors';
 import { TREATMENT_TYPE_LABELS, WEEKDAY_LABELS, fmtDate, todayISO } from '@/lib/labels';
 
 const TREATMENT_TYPES: TreatmentType[] = ['atropina', 'ortho_k', 'oculos_lentes'];
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
-export function TreatmentsSection({ childId }: { childId: string }) {
+export function TreatmentsSection({ childId, birthDate }: { childId: string; birthDate: string }) {
   const { data: treatments, isLoading, error } = useTreatments(childId);
   const createTreatment = useCreateTreatment(childId);
   const endTreatment = useEndTreatment(childId);
@@ -22,7 +22,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [endError, setEndError] = useState<string | null>(null);
 
-  function handleEnd(treatmentId: string) {
+  function handleEnd(treatment: Pick<Treatment, 'id' | 'starts_on'>) {
     if (
       !window.confirm(
         'Encerrar este tratamento? O app da família deixa de mostrá-lo a partir de hoje.',
@@ -32,7 +32,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
     }
     setEndError(null);
     setFormError(null);
-    endTreatment.mutate(treatmentId, {
+    endTreatment.mutate(treatment, {
       onError: (err) => setEndError(toPtBr(err, 'Não foi possível encerrar o tratamento.')),
     });
   }
@@ -46,19 +46,32 @@ export function TreatmentsSection({ childId }: { childId: string }) {
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
+    if (days.length === 0) {
+      setFormError('Marque ao menos um dia da semana.');
+      return;
+    }
+    if (!startsOn) {
+      setFormError('Informe a data de início do tratamento.');
+      return;
+    }
+    if (startsOn < birthDate) {
+      setFormError('A data de início é anterior ao nascimento da criança.');
+      return;
+    }
     try {
       await createTreatment.mutateAsync({
         type,
         instructions,
         // <input type="time"> dá 'HH:MM'; o banco aceita time, normalizamos vazio→null.
         suggested_time: suggestedTime || null,
-        days_of_week: days.length > 0 ? days : ALL_DAYS,
+        days_of_week: days,
         starts_on: startsOn,
         active: true,
       });
       setInstructions('');
       setSuggestedTime('');
       setDays(ALL_DAYS);
+      setStartsOn(todayISO());
       setType('atropina');
     } catch (err) {
       // Constraint uq_treatment_active: já existe um tratamento ativo desse tipo.
@@ -106,7 +119,7 @@ export function TreatmentsSection({ childId }: { childId: string }) {
                     <button
                       type="button"
                       disabled={endTreatment.isPending}
-                      onClick={() => handleEnd(t.id)}
+                      onClick={() => handleEnd(t)}
                     >
                       Encerrar
                     </button>
@@ -172,6 +185,8 @@ export function TreatmentsSection({ childId }: { childId: string }) {
           <br />
           <input
             type="date"
+            required
+            min={birthDate}
             value={startsOn}
             onChange={(e) => setStartsOn(e.target.value)}
           />

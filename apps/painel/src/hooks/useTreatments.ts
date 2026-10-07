@@ -64,15 +64,20 @@ export function useCreateTreatment(childId: string) {
   });
 }
 
-// Encerrar tratamento: active=false + ends_on (libera o slot do tipo).
+// Encerrar tratamento: active=false + ends_on (libera o slot do tipo). Se o
+// tratamento ainda não começou, o Fim é o próprio Início (nenhuma noite vale).
 export function useEndTreatment(childId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (treatmentId: string): Promise<void> => {
+    mutationFn: async (treatment: Pick<Treatment, 'id' | 'starts_on'>): Promise<void> => {
+      const today = todayISO();
       const { error } = await supabase
         .from('treatments')
-        .update({ active: false, ends_on: todayISO() })
-        .eq('id', treatmentId);
+        .update({
+          active: false,
+          ends_on: treatment.starts_on > today ? treatment.starts_on : today,
+        })
+        .eq('id', treatment.id);
       if (error) throw error;
     },
     onSuccess: () => {

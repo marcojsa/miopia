@@ -20,6 +20,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthTextField } from '@/components/auth/AuthTextField';
 import { AppText, Button, Card, Screen } from '@/components/ui';
 import { parseAuthLink } from '@/lib/authLink';
+import {
+  clearPendingPassword,
+  markPendingPassword,
+  readPendingPassword,
+} from '@/lib/pendingPassword';
 import { signOutDoAparelho } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
@@ -29,7 +34,8 @@ const MIN_PASSWORD = 8;
 const MSG_OFFLINE = 'Não conseguimos conectar. Verifique sua internet e tente novamente.';
 
 // Conta cuja sessão foi aberta por um link de e-mail ainda não usado para gravar a senha.
-// Em memória do módulo: sobrevive à remontagem da tela, mas não a abrir a rota sem link.
+// Em memória do módulo: sobrevive à remontagem da tela. No convite a marca também vai
+// para o aparelho (pendingPassword), para valer depois de fechar e reabrir o app.
 let linkSessionUserId: string | null = null;
 
 type Mode = 'convite' | 'recuperacao';
@@ -101,7 +107,10 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
             access_token: parsed.accessToken,
             refresh_token: parsed.refreshToken,
           });
-          if (!error && data.user) linkSessionUserId = data.user.id;
+          if (!error && data.user) {
+            linkSessionUserId = data.user.id;
+            if (mode === 'convite') await markPendingPassword(data.user.id);
+          }
           if (mounted.current) setPhase(error || !data.user ? 'invalid' : 'form');
         } catch {
           if (mounted.current) setPhase('invalid');
@@ -111,7 +120,11 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
       // Sem tokens: só segue para a senha se a sessão foi aberta pelo link (tela remontada).
       // Sessão aberta por login comum não troca senha por aqui.
       const current = sessionRef.current;
-      if (current && linkSessionUserId === current.user.id) {
+      if (
+        current &&
+        (linkSessionUserId === current.user.id ||
+          (mode === 'convite' && (await readPendingPassword()) === current.user.id))
+      ) {
         if (mounted.current) setPhase('form');
         return;
       }
@@ -121,7 +134,7 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
       }
       if (mounted.current) setPhase('invalid');
     })();
-  }, [url, phase, authLoading, router]);
+  }, [url, phase, authLoading, router, mode]);
 
   const handleSave = async (): Promise<void> => {
     if (saving) return;
@@ -157,6 +170,7 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
         () => undefined
       );
       linkSessionUserId = null;
+      await clearPendingPassword();
       router.replace('/');
     } catch {
       setStatus(MSG_OFFLINE);
@@ -180,6 +194,7 @@ export function SetPasswordScreen({ mode }: { mode: Mode }) {
     setLeaving(true);
     linkSessionUserId = null;
     try {
+      await clearPendingPassword();
       await signOutDoAparelho();
     } finally {
       if (mounted.current) setLeaving(false);

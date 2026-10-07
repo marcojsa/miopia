@@ -231,7 +231,11 @@ function walkStart(
   startsOn?: string
 ): string {
   const inferred = inferStartsOn(logs, pausedDates, today);
-  return startsOn !== undefined && startsOn < inferred ? startsOn : inferred;
+  const start = startsOn !== undefined && startsOn < inferred ? startsOn : inferred;
+  // A trava de segurança corta o começo da caminhada, nunca as noites recentes:
+  // um Início muito antigo (ou digitado com o ano errado) não pode zerar o céu.
+  const floor = addDays(today, -MAX_SIMULATED_NIGHTS);
+  return start < floor ? floor : start;
 }
 
 // ── API pública ──────────────────────────────────────────────────────────────

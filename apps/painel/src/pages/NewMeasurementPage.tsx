@@ -132,6 +132,10 @@ export function NewMeasurementPage() {
     setSubmitError(null);
     const allErrors = [...odField.errors, ...oeField.errors];
     if (!measuredOn) allErrors.push('Informe a data da medição.');
+    else if (measuredOn > todayISO()) allErrors.push('A data da medição não pode ser no futuro.');
+    else if (child && measuredOn < child.birth_date) {
+      allErrors.push('A data da medição é anterior ao nascimento da criança.');
+    }
     const allEmpty = [odField.parsed, oeField.parsed].every(
       (eye) => eye.sphere === null && eye.cylinder === null && eye.axial === null,
     );
@@ -144,6 +148,15 @@ export function NewMeasurementPage() {
       return;
     }
     setPending({ odParsed: odField.parsed, oeParsed: oeField.parsed });
+  }
+
+  // Mexeu num campo: a lista de erros da última revisão já não vale (o navegador
+  // pode barrar o próximo envio antes de o painel revisar de novo).
+  function edit<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setErrors([]);
+    };
   }
 
   // Etapa 2 → segundo "Confirmar": grava de fato.
@@ -193,21 +206,22 @@ export function NewMeasurementPage() {
           <input
             type="date"
             required
+            min={child.birth_date}
             max={todayISO()}
             value={measuredOn}
             disabled={pending !== null}
-            onChange={(e) => setMeasuredOn(e.target.value)}
+            onChange={(e) => edit(setMeasuredOn)(e.target.value)}
           />
         </label>
 
         <fieldset>
           <legend>Olho direito (OD)</legend>
-          <EyeInputs values={od} disabled={pending !== null} onChange={setOd} />
+          <EyeInputs values={od} disabled={pending !== null} onChange={edit(setOd)} />
         </fieldset>
 
         <fieldset>
           <legend>Olho esquerdo (OE)</legend>
-          <EyeInputs values={oe} disabled={pending !== null} onChange={setOe} />
+          <EyeInputs values={oe} disabled={pending !== null} onChange={edit(setOe)} />
         </fieldset>
 
         <label>

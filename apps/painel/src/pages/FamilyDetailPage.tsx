@@ -10,6 +10,12 @@ import { MeasurementsSection } from '@/components/MeasurementsSection';
 import { errorCode, toPtBr } from '@/lib/errors';
 import { fmtDate, todayISO } from '@/lib/labels';
 
+// Nascimento mais antigo aceito: 25 anos antes de hoje (pega ano digitado errado).
+function minBirthISO(): string {
+  const today = todayISO();
+  return `${Number(today.slice(0, 4)) - 25}${today.slice(4)}`;
+}
+
 function NewChildForm({ familyId }: { familyId: string }) {
   const createChild = useCreateChild(familyId);
   const [firstName, setFirstName] = useState('');
@@ -21,6 +27,10 @@ function NewChildForm({ familyId }: { familyId: string }) {
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     setFormError(null);
+    if (birthDate && (birthDate < minBirthISO() || birthDate > todayISO())) {
+      setFormError('Confira a data de nascimento: ela precisa estar entre os últimos 25 anos e hoje.');
+      return;
+    }
     try {
       await createChild.mutateAsync({
         first_name: firstName,
@@ -56,6 +66,7 @@ function NewChildForm({ familyId }: { familyId: string }) {
         <input
           type="date"
           required
+          min={minBirthISO()}
           max={todayISO()}
           value={birthDate}
           onChange={(e) => setBirthDate(e.target.value)}
@@ -132,7 +143,7 @@ export function FamilyDetailPage() {
             <span className="muted">(nasc. {fmtDate(child.birth_date)})</span>
             {child.archived_at ? <span className="muted"> — arquivada</span> : null}
           </h2>
-          <TreatmentsSection childId={child.id} />
+          <TreatmentsSection childId={child.id} birthDate={child.birth_date} />
           <MeasurementsSection childId={child.id} />
         </article>
       ))}

@@ -278,3 +278,17 @@ test('dois cuidados na noite: a estrela só acende com os dois feitos', () => {
   );
   assert.equal(sky.find((d) => d.date === ontem)?.state, 'empty');
 });
+
+test('início muito antigo (ou ano digitado errado) não zera as noites recentes', () => {
+  const today = '2026-10-07';
+  const logs: GamificationLog[] = [];
+  for (let i = 1; i <= 9; i++) logs.push({ log_date: addDays(today, -i), status: 'feito' });
+  for (const startsOn of ['2026-09-28', '2020-03-01', '0202-10-07']) {
+    const shields = computeShields(logs, [], today, startsOn);
+    assert.equal(shields.totalNights, 9, startsOn);
+    const sky = computeSky(logs, [], '2026-10', startsOn, today);
+    assert.equal(sky.find((d) => d.date === '2026-10-06')?.state, 'gold', startsOn);
+    const week = computeWeek(logs, [], today, startsOn);
+    assert.equal(week.days.find((d) => d.date === '2026-10-06')?.state, 'gold', startsOn);
+  }
+});

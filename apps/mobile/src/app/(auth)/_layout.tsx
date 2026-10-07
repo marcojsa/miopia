@@ -7,6 +7,7 @@ import { Redirect, Stack, useSegments } from 'expo-router';
 
 import { BootScreen } from '@/components/ui';
 import { useIsStaff } from '@/hooks';
+import { CONVITE_HREF, usePendingPassword } from '@/hooks/usePendingPassword';
 import { useSession } from '@/providers/auth';
 
 export default function AuthLayout() {
@@ -14,8 +15,12 @@ export default function AuthLayout() {
   const segments = useSegments();
   const onConsent = segments[segments.length - 1] === 'consent';
   const staff = useIsStaff();
+  const pendingPassword = usePendingPassword(session?.user.id ?? null);
 
   if (isLoading) return <BootScreen />; // aguardando sessão persistida do AsyncStorage
+  // Convite aberto pelo link sem senha criada: nada de consentimento antes da senha.
+  if (pendingPassword.isLoading) return <BootScreen />;
+  if (pendingPassword.pending) return <Redirect href={CONVITE_HREF} />;
   // Conta da equipe não consente como responsável: o guard de (app) mostra o aviso.
   if (session && (!onConsent || staff.data === true)) return <Redirect href="/" />;
   // Sem sessão o consentimento não tem o que carregar: volta à Welcome.

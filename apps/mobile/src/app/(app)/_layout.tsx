@@ -19,6 +19,7 @@ import {
   useNotificationPermission,
   useReminderSync,
 } from '@/hooks';
+import { CONVITE_HREF, usePendingPassword } from '@/hooks/usePendingPassword';
 import { useSession } from '@/providers/auth';
 import { useUiStore } from '@/stores/ui';
 import { colors, fonts } from '@/theme/tokens';
@@ -48,6 +49,7 @@ export default function AppLayout() {
   const childrenQuery = useChildren();
   const consent = useConsentPending(session?.user.id ?? null);
   const notifications = useNotificationPermission();
+  const pendingPassword = usePendingPassword(session?.user.id ?? null);
   // A 1ª decisão do gate segura as abas; depois disso, recarregar filhos ou
   // consentimento (nova key) NÃO desmonta o navegador nem perde a rota atual.
   const decided = useRef(false);
@@ -57,6 +59,10 @@ export default function AppLayout() {
     decided.current = false;
     return <Redirect href="/(auth)/welcome" />;
   }
+
+  // Convite aberto pelo link e app fechado antes de criar a senha: volta para a senha.
+  if (pendingPassword.isLoading) return <BootScreen />;
+  if (pendingPassword.pending) return <Redirect href={CONVITE_HREF} />;
 
   // Segura a renderização até filhos E consentimento resolverem (a query de
   // consentimento só liga depois dos filhos). Em erro/offline as queries resolvem

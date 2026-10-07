@@ -32,6 +32,22 @@ async function readStoredSession(): Promise<Session | null> {
   }
 }
 
+/**
+ * Sessão derrubada pelo servidor antes de o provider escutar (cold start com refresh
+ * token revogado): o supabase-js apaga a sessão gravada sem emitir SIGNED_OUT para
+ * nós. Sem sessão no storage e com um usuário anterior no aparelho, limpa os dados.
+ * Offline o storage ainda tem a sessão, então nada é apagado.
+ */
+async function clearIfSignedOutElsewhere(): Promise<void> {
+  try {
+    if (!(await AsyncStorage.getItem(LAST_USER_KEY))) return;
+    if (await readStoredSession()) return;
+    await clearLocalUserData();
+  } catch {
+    // Storage indisponível: segue sem a limpeza.
+  }
+}
+
 /** Troca de conta no aparelho (inclusive após um logout que falhou): limpa os dados locais. */
 async function guardAccountSwitch(userId: string): Promise<void> {
   try {
@@ -65,7 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const adoptOrKeepStored = async (next: Session | null): Promise<void> => {
       clientAnswered = true;
       const gen = generation;
-      await adopt(next ?? (await readStoredSession()), gen);
+      const resolved = next ?? (await readStoredSession());
+      if (!resolved) await clearIfSignedOutElsewhere();
+      await adopt(resolved, gen);
     };
 
     const initialGen = generation;
