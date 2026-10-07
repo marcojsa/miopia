@@ -13,7 +13,7 @@
 //
 // Toda noite de [since, hoje] conta como pausada, mesmo que o app não seja
 // aberto nas férias: getPausedState expande o intervalo e setChildPaused(false)
-// grava o intervalo inteiro em paused-dates. Quem pausa também deve refletir
+// grava o intervalo em paused-dates, menos a noite de hoje. Quem pausa também deve refletir
 // nos lembretes via syncSchedulesForFamily({ remindersPaused: true }).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query';
@@ -145,9 +145,10 @@ export async function setChildPaused(childId: string, paused: boolean): Promise<
     await AsyncStorage.setItem(keys.paused, 'true');
     await appendPausedDate(childId, today);
   } else {
-    // Fecha a pausa: grava todas as noites de [since, hoje] antes de desligar.
+    // Fecha a pausa: grava as noites de [since, ontem] antes de desligar. A noite
+    // de hoje ainda pode ser cuidada: quem retoma volta a vê-la pendente.
     const { pausedDates } = await getPausedState(childId);
-    await AsyncStorage.setItem(keys.dates, JSON.stringify(pausedDates));
+    await AsyncStorage.setItem(keys.dates, JSON.stringify(pausedDates.filter((d) => d !== today)));
     await AsyncStorage.setItem(keys.paused, 'false');
     await AsyncStorage.removeItem(keys.since);
   }

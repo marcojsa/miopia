@@ -8,7 +8,7 @@
 // estrelas/escudos/marcos. Gamificação celebra ADESÃO, nunca resultado clínico.
 import { useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -181,6 +181,25 @@ export default function TodayScreen() {
     return byTreatment;
   }, [todayQuery.data, activeChildId, today]);
 
+  // Troca de regime pela clínica: o banco passa o check-in de hoje para o
+  // tratamento novo, que o cache de tratamentos (staleTime longo) ainda não tem.
+  // Sem rebuscar, a Hoje pediria de novo a noite já registrada.
+  const unknownTreatmentIds = useMemo(() => {
+    const known = allTreatmentsQuery.data;
+    if (!known) return '';
+    const ids = new Set(known.map((t) => t.id));
+    return [...new Set((todayQuery.data ?? []).map((l) => l.treatment_id))]
+      .filter((id) => !ids.has(id))
+      .sort()
+      .join(',');
+  }, [allTreatmentsQuery.data, todayQuery.data]);
+  const refetchedFor = useRef('');
+  useEffect(() => {
+    if (!unknownTreatmentIds || refetchedFor.current === unknownTreatmentIds) return;
+    refetchedFor.current = unknownTreatmentIds;
+    void queryClient.invalidateQueries({ queryKey: ['treatments'] });
+  }, [unknownTreatmentIds, queryClient]);
+
   const isCorrecting = correcting === `${activeChildId ?? ''}:${today}`;
 
   const pendingTreatments = useMemo(
@@ -218,21 +237,26 @@ export default function TodayScreen() {
     const list = childTreatmentsQuery.data ?? [];
     return (date: string) => list.some((t) => isScheduledOn(t, date));
   }, [childTreatmentsQuery.data]);
+  // Cuidados programados na noite: a estrela só acende com um 'feito' para cada.
+  const dueCount = useMemo(() => {
+    const list = childTreatmentsQuery.data ?? [];
+    return (date: string) => list.filter((t) => isScheduledOn(t, date)).length;
+  }, [childTreatmentsQuery.data]);
 
   const logs = adherenceQuery.data ?? [];
   const pausedDates = pausedQuery.data?.pausedDates ?? [];
 
   const week = useMemo(
-    () => computeWeek(logs, pausedDates, today, startsOn, isDue),
-    [logs, pausedDates, today, startsOn, isDue]
+    () => computeWeek(logs, pausedDates, today, startsOn, isDue, dueCount),
+    [logs, pausedDates, today, startsOn, isDue, dueCount]
   );
   const shields = useMemo(
-    () => computeShields(logs, pausedDates, today, startsOn, isDue),
-    [logs, pausedDates, today, startsOn, isDue]
+    () => computeShields(logs, pausedDates, today, startsOn, isDue, dueCount),
+    [logs, pausedDates, today, startsOn, isDue, dueCount]
   );
   const milestones = useMemo(
-    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue),
-    [logs, pausedDates, today, startsOn, isDue]
+    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue, dueCount),
+    [logs, pausedDates, today, startsOn, isDue, dueCount]
   );
 
   const [refreshing, setRefreshing] = useState(false);

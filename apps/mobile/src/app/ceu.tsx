@@ -102,21 +102,26 @@ function CeuScreenContent() {
     const list = treatmentsQuery.data ?? [];
     return (date: string) => list.some((t) => isScheduledOn(t, date));
   }, [treatmentsQuery.data]);
+  // Cuidados programados na noite: a estrela só acende com um 'feito' para cada.
+  const dueCount = useMemo(() => {
+    const list = treatmentsQuery.data ?? [];
+    return (date: string) => list.filter((t) => isScheduledOn(t, date)).length;
+  }, [treatmentsQuery.data]);
 
   const logs = adherenceQuery.data ?? [];
   const pausedDates = pausedQuery.data?.pausedDates ?? [];
 
   const sky = useMemo(
-    () => computeSky(logs, pausedDates, monthYM, startsOn ?? today, today, isDue),
-    [logs, pausedDates, monthYM, startsOn, today, isDue]
+    () => computeSky(logs, pausedDates, monthYM, startsOn ?? today, today, isDue, dueCount),
+    [logs, pausedDates, monthYM, startsOn, today, isDue, dueCount]
   );
   const shields = useMemo(
-    () => computeShields(logs, pausedDates, today, startsOn, isDue),
-    [logs, pausedDates, today, startsOn, isDue]
+    () => computeShields(logs, pausedDates, today, startsOn, isDue, dueCount),
+    [logs, pausedDates, today, startsOn, isDue, dueCount]
   );
   const milestones = useMemo(
-    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue),
-    [logs, pausedDates, today, startsOn, isDue]
+    () => computeStreakAndMilestones(logs, pausedDates, today, startsOn, isDue, dueCount),
+    [logs, pausedDates, today, startsOn, isDue, dueCount]
   );
 
   const childName = child?.first_name ?? '';

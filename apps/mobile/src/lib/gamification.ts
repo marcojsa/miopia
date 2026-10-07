@@ -78,6 +78,8 @@ export function faltamNoites(n: number, so = false): string {
 
 /** Diz se a noite da data tinha cuidado programado (dias da semana, fim do tratamento). */
 export type IsNightDue = (date: string) => boolean;
+/** Quantos cuidados estavam programados na noite da data (um por tratamento). */
+export type NightDueCount = (date: string) => number;
 const MAX_SHIELDS = 3;
 const NIGHTS_PER_SHIELD = 7;
 // Trava de segurança da caminhada cronológica (~5 anos); entradas malformadas
@@ -126,21 +128,31 @@ interface Simulation {
 }
 
 /**
- * Indexa os logs por data: a noite é COMPLETA quando existe >= 1 registro e
- * todos têm status 'feito'. Um 'pulado' na noite (ou ausência total de
- * registro) torna a noite perdida — candidata a escudo.
- * Obs.: os logs são por tratamento; passe os logs de UMA criança. Se a família
- * registrou só um dos tratamentos da noite, a noite conta como completa pelo
- * que foi relatado (o app não infere o que "deveria" ter sido feito).
+ * Indexa os logs por data: a noite é COMPLETA quando todos os registros têm
+ * status 'feito' e há pelo menos um registro por cuidado programado na noite
+ * (`dueCount`; sem ele, basta >= 1 registro). Um 'pulado' na noite, ou um
+ * cuidado ainda sem resposta, torna a noite incompleta — candidata a escudo.
+ * Obs.: os logs são por tratamento; passe os logs de UMA criança.
  */
-function indexCompleteByDate(logs: GamificationLog[]): Map<string, boolean> {
-  const byDate = new Map<string, boolean>();
+function indexCompleteByDate(
+  logs: GamificationLog[],
+  dueCount?: NightDueCount
+): Map<string, boolean> {
+  const byDate = new Map<string, { feito: boolean; count: number }>();
   for (const log of logs) {
     const prev = byDate.get(log.log_date);
     const isFeito = log.status === 'feito';
-    byDate.set(log.log_date, prev === undefined ? isFeito : prev && isFeito);
+    byDate.set(log.log_date, {
+      feito: prev === undefined ? isFeito : prev.feito && isFeito,
+      count: (prev?.count ?? 0) + 1,
+    });
   }
-  return byDate;
+  const complete = new Map<string, boolean>();
+  for (const [date, { feito, count }] of byDate) {
+    const due = dueCount ? dueCount(date) : 1;
+    complete.set(date, feito && count >= Math.max(1, due));
+  }
+  return complete;
 }
 
 /**
@@ -153,9 +165,10 @@ function simulateNights(
   pausedDates: string[],
   startsOn: string,
   today: string,
-  isDue?: IsNightDue
+  isDue?: IsNightDue,
+  dueCount?: NightDueCount
 ): Simulation {
-  const completeByDate = indexCompleteByDate(logs);
+  const completeByDate = indexCompleteByDate(logs, dueCount);
   const paused = new Set(pausedDates);
   const nights = new Map<string, NightOutcome>();
 
@@ -238,6 +251,7 @@ function walkStart(
  *   a caminhada começa no mais antigo entre ele e o primeiro log/pausa.
  * @param today Data lógica de hoje (corte 04h); padrão localDateString().
  * @param isDue Noite tinha cuidado programado? Sem ele, toda noite é devida.
+ * @param dueCount Quantos cuidados a noite tinha; a estrela exige um 'feito' para cada.
  */
 export function computeSky(
   logs: GamificationLog[],
@@ -245,10 +259,11 @@ export function computeSky(
   monthYM: string,
   treatmentStartsOn: string,
   today: string = localDateString(),
-  isDue?: IsNightDue
+  isDue?: IsNightDue,
+  dueCount?: NightDueCount
 ): SkyDay[] {
   const from = walkStart(logs, pausedDates, today, treatmentStartsOn);
-  const sim = simulateNights(logs, pausedDates, from, today, isDue);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue, dueCount);
   const total = daysInMonth(monthYM);
   const days: SkyDay[] = [];
 
@@ -294,16 +309,18 @@ export function computeSky(
  *   começa no mais antigo entre ele e a data mais antiga conhecida (logs/pausas)
  *   — passe sempre que possível, igual ao céu.
  * @param isDue Noite tinha cuidado programado? Noite não devida não consome escudo.
+ * @param dueCount Quantos cuidados a noite tinha; a estrela exige um 'feito' para cada.
  */
 export function computeShields(
   logs: GamificationLog[],
   pausedDates: string[],
   today: string = localDateString(),
   startsOn?: string,
-  isDue?: IsNightDue
+  isDue?: IsNightDue,
+  dueCount?: NightDueCount
 ): ShieldsResult {
   const from = walkStart(logs, pausedDates, today, startsOn);
-  const sim = simulateNights(logs, pausedDates, from, today, isDue);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue, dueCount);
   return { available: sim.shieldsAvailable, totalNights: sim.totalCompleteNights };
 }
 
@@ -316,9 +333,10 @@ export function computeStreakAndMilestones(
   pausedDates: string[],
   today: string = localDateString(),
   startsOn?: string,
-  isDue?: IsNightDue
+  isDue?: IsNightDue,
+  dueCount?: NightDueCount
 ): MilestonesResult {
-  const { totalNights } = computeShields(logs, pausedDates, today, startsOn, isDue);
+  const { totalNights } = computeShields(logs, pausedDates, today, startsOn, isDue, dueCount);
   const next = MILESTONES.find((m) => totalNights < m) ?? null;
   return {
     totalCompleteNights: totalNights,
@@ -339,10 +357,11 @@ export function computeWeek(
   pausedDates: string[],
   today: string = localDateString(),
   startsOn?: string,
-  isDue?: IsNightDue
+  isDue?: IsNightDue,
+  dueCount?: NightDueCount
 ): WeekResult {
   const from = walkStart(logs, pausedDates, today, startsOn);
-  const sim = simulateNights(logs, pausedDates, from, today, isDue);
+  const sim = simulateNights(logs, pausedDates, from, today, isDue, dueCount);
   const monday = mondayOf(today);
 
   const days: WeekDay[] = [];

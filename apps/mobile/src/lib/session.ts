@@ -26,6 +26,7 @@ export async function clearLocalUserData(): Promise<void> {
   } catch {
     // Sem permissão de notificação: nada agendado para limpar.
   }
+  await queryClient.cancelQueries();
   queryClient.clear();
   useUiStore.setState({ activeChildId: null, pendingCheckin: null });
   try {

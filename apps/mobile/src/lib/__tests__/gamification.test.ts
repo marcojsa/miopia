@@ -252,3 +252,29 @@ test('noite pausada sem "Feito" continua nuvem, mesmo com "pulado"', () => {
   assert.equal(sky[1].state, 'cloud');
   assert.equal(sky[2].state, 'cloud');
 });
+
+test('dois cuidados na noite: a estrela só acende com os dois feitos', () => {
+  const dueCount = () => 2;
+  const today = '2026-06-10';
+  const soLente: GamificationLog[] = [{ log_date: today, status: 'feito' }];
+  const pendente = computeWeek(soLente, [], today, START, undefined, dueCount);
+  assert.equal(pendente.days.find((d) => d.date === today)?.state, 'today_pending');
+  assert.equal(computeShields(soLente, [], today, START, undefined, dueCount).totalNights, 0);
+
+  const ambos: GamificationLog[] = [...soLente, { log_date: today, status: 'feito' }];
+  const feita = computeWeek(ambos, [], today, START, undefined, dueCount);
+  assert.equal(feita.days.find((d) => d.date === today)?.state, 'gold');
+  assert.equal(computeShields(ambos, [], today, START, undefined, dueCount).totalNights, 1);
+
+  const ontem = '2026-06-09';
+  const sky = computeSky(
+    [{ log_date: ontem, status: 'feito' }],
+    [],
+    '2026-06',
+    ontem,
+    today,
+    undefined,
+    dueCount
+  );
+  assert.equal(sky.find((d) => d.date === ontem)?.state, 'empty');
+});

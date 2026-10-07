@@ -284,7 +284,7 @@ subject = "Convite da clínica para o app Lumi"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.recovery]
-subject = "Lumi: criar nova senha"
+subject = "Lumi: criar sua senha de acesso"
 content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template

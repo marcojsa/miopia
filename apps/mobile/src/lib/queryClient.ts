@@ -2,7 +2,7 @@
 // medições mudam 2-3x/ano — dashboard abre instantâneo e offline (design-mobile §estado).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, defaultShouldDehydrateQuery, type Query } from '@tanstack/react-query';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -30,4 +30,10 @@ export const persistOptions = {
   maxAge: 7 * 24 * HOUR,
   // Incrementar para invalidar todo o cache persistido em mudança de shape dos dados.
   buster: 'v1',
+  // Pausa de férias (['reminders', ...]) já mora no AsyncStorage com chave por
+  // usuário: persistir a query só deixaria ids de filhos para trás após o logout.
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query: Query) =>
+      defaultShouldDehydrateQuery(query) && query.queryKey[0] !== 'reminders',
+  },
 };
