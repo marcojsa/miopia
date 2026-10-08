@@ -13,6 +13,6 @@ Bugs que não dá para corrigir sem uma decisão do Marco ou da Dra. Cada um tra
 
 - **Nome da aba: "Progresso" ou "Evolução".** A aba diz uma coisa, a tela diz outra. Recomendação: "Evolução" nos dois.
 - **Ícone e tela de abertura.** O APK usa o ícone e o splash do modelo do Expo. Precisa da arte do Lumi (coruja) em PNG.
-- **Projeto Supabase de produção.** O antigo sumiu. Criar um novo, de preferência na conta da clínica, região São Paulo. Sem ele, os perfis de build de loja abrem o app e fecham na hora.
+- **Projeto Supabase: feito em 07/10/2026.** Projeto "Lumi" (ref ghfsnwrrkpclkdiogbtc, São Paulo), plano grátis, com as 16 migrations, as duas funções e a família de demonstração. Falta decidir: (a) quem paga o plano Pro quando entrarem famílias reais (o grátis pausa após 7 dias sem uso); (b) serviço de e-mail próprio (ex.: Resend) — sem ele os e-mails de convite saem em inglês e só chegam a membros da conta; (c) apagar os usuários de demonstração (@example.com) antes do piloto.
 - **Conta para builds.** O EAS está na conta pessoal marcojsa. Decidir se migra para a conta da clínica antes da loja.
 - **Registros de cuidado na exclusão de conta.** Decidido seguir a matriz do design-backend §5: os check-ins ficam no histórico da criança, sem autoria (logged_by vira nulo). Os textos do app foram alinhados a isso. Se a decisão mudar para apagar, a delete-account precisa de `delete from adherence_logs where logged_by = user.id` antes do deleteUser, e os textos voltam a dizer "apagados".
