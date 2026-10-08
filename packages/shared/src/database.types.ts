@@ -38,6 +38,7 @@ export type Database = {
         Row: {
           child_id: string
           created_at: string
+          dose: number
           id: string
           log_date: string
           logged_by: string | null
@@ -48,6 +49,7 @@ export type Database = {
         Insert: {
           child_id: string
           created_at?: string
+          dose?: number
           id?: string
           log_date: string
           logged_by?: string | null
@@ -58,6 +60,7 @@ export type Database = {
         Update: {
           child_id?: string
           created_at?: string
+          dose?: number
           id?: string
           log_date?: string
           logged_by?: string | null
@@ -79,6 +82,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "treatments"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_routines: {
+        Row: {
+          bed_time: string
+          child_id: string
+          guardian_user_id: string
+          updated_at: string
+          wake_time: string
+        }
+        Insert: {
+          bed_time?: string
+          child_id: string
+          guardian_user_id: string
+          updated_at?: string
+          wake_time?: string
+        }
+        Update: {
+          bed_time?: string
+          child_id?: string
+          guardian_user_id?: string
+          updated_at?: string
+          wake_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_routines_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contents: {
+        Row: {
+          body: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          published: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+          youtube_url: string | null
+        }
+        Insert: {
+          body?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Update: {
+          body?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          published?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          youtube_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -538,8 +620,10 @@ export type Database = {
           ends_on: string | null
           id: string
           instructions: string | null
+          name: string | null
           starts_on: string
           suggested_time: string | null
+          times_per_day: number
           type: Database["public"]["Enums"]["treatment_type"]
         }
         Insert: {
@@ -551,8 +635,10 @@ export type Database = {
           ends_on?: string | null
           id?: string
           instructions?: string | null
+          name?: string | null
           starts_on?: string
           suggested_time?: string | null
+          times_per_day?: number
           type: Database["public"]["Enums"]["treatment_type"]
         }
         Update: {
@@ -564,8 +650,10 @@ export type Database = {
           ends_on?: string | null
           id?: string
           instructions?: string | null
+          name?: string | null
           starts_on?: string
           suggested_time?: string | null
+          times_per_day?: number
           type?: Database["public"]["Enums"]["treatment_type"]
         }
         Relationships: [
@@ -596,7 +684,12 @@ export type Database = {
       adherence_status: "feito" | "pulado"
       clinical_status: "controle_adequado" | "atencao" | "sem_avaliacao"
       staff_role: "medica" | "secretaria" | "admin"
-      treatment_type: "atropina" | "ortho_k" | "oculos_lentes"
+      treatment_type:
+        | "atropina"
+        | "ortho_k"
+        | "oculos_lentes"
+        | "colirio"
+        | "lente_contato"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -730,7 +823,13 @@ export const Constants = {
       adherence_status: ["feito", "pulado"],
       clinical_status: ["controle_adequado", "atencao", "sem_avaliacao"],
       staff_role: ["medica", "secretaria", "admin"],
-      treatment_type: ["atropina", "ortho_k", "oculos_lentes"],
+      treatment_type: [
+        "atropina",
+        "ortho_k",
+        "oculos_lentes",
+        "colirio",
+        "lente_contato",
+      ],
     },
   },
 } as const

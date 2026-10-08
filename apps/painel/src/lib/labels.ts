@@ -5,6 +5,8 @@ export const TREATMENT_TYPE_LABELS: Record<TreatmentType, string> = {
   atropina: 'Atropina',
   ortho_k: 'Ortoceratologia (ortho-k)',
   oculos_lentes: 'Óculos / lentes',
+  colirio: 'Colírio',
+  lente_contato: 'Lente de contato',
 };
 
 export const CLINICAL_STATUS_LABELS: Record<ClinicalStatus, string> = {

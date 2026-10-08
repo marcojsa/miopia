@@ -9,13 +9,15 @@
 --   * responsável B   → simétrico (não vê nada da família A)
 --   * staff (Betânia) → lê tudo, escreve dados clínicos; NÃO fabrica adesão
 --                       e NÃO enxerga preferências pessoais de lembrete
+--   * doses e rotina  → colírio várias vezes ao dia (dose), rotina da criança
+--                       (child_routines) e troca de regime por dose
 --
 -- Pré-requisito: 00-test-helpers.sql (basejump/supabase_test_helpers
 -- vendorizado) roda antes — o pg_prove ordena os arquivos por nome.
 -- Tudo dentro de uma transação com rollback: o banco fica intacto.
 -- ============================================================
 begin;
-select plan(72);
+select plan(103);
 
 -- ------------------------------------------------------------
 -- O banco de dev chega SEEDADO (`supabase db reset` roda o seed.sql) e as
@@ -27,7 +29,8 @@ truncate table
   public.staff, public.families, public.guardians, public.children,
   public.treatments, public.reminder_prefs, public.measurements,
   public.adherence_logs, public.consent_terms, public.consents,
-  public.family_invites, public.push_tokens, public.deletion_requests
+  public.family_invites, public.push_tokens, public.deletion_requests,
+  public.child_routines, public.contents
   cascade;
 
 -- ------------------------------------------------------------
@@ -130,6 +133,7 @@ select throws_ok('select count(*) from public.consents',          '42501', null,
 select throws_ok('select count(*) from public.family_invites',    '42501', null, 'anon: family_invites bloqueada');
 select throws_ok('select count(*) from public.push_tokens',       '42501', null, 'anon: push_tokens bloqueada');
 select throws_ok('select count(*) from public.deletion_requests', '42501', null, 'anon: deletion_requests bloqueada');
+select throws_ok('select count(*) from public.child_routines',    '42501', null, 'anon: child_routines bloqueada');
 
 -- ------------------------------------------------------------
 -- T15..T47 — RESPONSÁVEL A (mae_a)
@@ -404,6 +408,178 @@ select lives_ok(
   'staff cria família nova');
 
 -- ------------------------------------------------------------
+-- DOSES E ROTINA (docs/especificacao-lumi-geral.md)
+-- Colírio várias vezes ao dia, rotina da criança e troca de regime por dose.
+--   tratamento ...-04 = Colírio X (2x) da criança A
+--   tratamento ...-05 = Colírio Y (3x) da criança A
+-- ------------------------------------------------------------
+reset role;   -- postgres: a prescrição é da clínica, aqui só interessa a regra do banco
+
+select lives_ok(
+  $q$ insert into public.treatments (id, child_id, type, name, times_per_day) values
+        ('aaaaaaaa-0000-4000-a000-000000000004', 'aaaaaaaa-0000-4000-a000-000000000002',
+         'colirio', 'Colírio X', 2),
+        ('aaaaaaaa-0000-4000-a000-000000000005', 'aaaaaaaa-0000-4000-a000-000000000002',
+         'colirio', 'Colírio Y', 3) $q$,
+  'dois colírios diferentes ATIVOS para a mesma criança são aceitos');
+select throws_ok(
+  $q$ insert into public.treatments (child_id, type)
+      values ('aaaaaaaa-0000-4000-a000-000000000002', 'atropina') $q$,
+  '23505', null,
+  'duas atropinas ativas para a mesma criança continuam RECUSADAS');
+select throws_ok(
+  $q$ insert into public.treatments (child_id, type, name, times_per_day)
+      values ('aaaaaaaa-0000-4000-a000-000000000002', 'colirio', '  colírio x ', 4) $q$,
+  '23505', null,
+  'o MESMO colírio (mesmo nome) ativo duas vezes é recusado');
+select throws_ok(
+  $q$ insert into public.treatments (child_id, type, times_per_day)
+      values ('bbbbbbbb-0000-4000-a000-000000000002', 'atropina', 2) $q$,
+  '23514', null,
+  'atropina continua 1 vez por dia (times_per_day > 1 é recusado)');
+
+select tests.authenticate_as('mae_a');
+
+select lives_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('aaaaaaaa-0000-4000-a000-000000000004',
+                     'aaaaaaaa-0000-4000-a000-000000000002', current_date, 1, 'feito', '%1$s'),
+                    ('aaaaaaaa-0000-4000-a000-000000000004',
+                     'aaaaaaaa-0000-4000-a000-000000000002', current_date, 2, 'pulado', '%1$s') $q$,
+         tests.get_supabase_uid('mae_a')),
+  'duas doses no mesmo dia para o mesmo tratamento são aceitas');
+select results_eq(
+  $q$ select count(*) from public.adherence_logs
+      where treatment_id = 'aaaaaaaa-0000-4000-a000-000000000004' and log_date = current_date $q$,
+  array[2::bigint],
+  'as duas doses do dia ficaram gravadas');
+select throws_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('aaaaaaaa-0000-4000-a000-000000000004',
+                     'aaaaaaaa-0000-4000-a000-000000000002', current_date, 1, 'feito', '%s') $q$,
+         tests.get_supabase_uid('mae_a')),
+  '23505', null,
+  'a MESMA dose duas vezes no mesmo dia é recusada (23505)');
+select throws_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('aaaaaaaa-0000-4000-a000-000000000004',
+                     'aaaaaaaa-0000-4000-a000-000000000002', current_date, 3, 'feito', '%s') $q$,
+         tests.get_supabase_uid('mae_a')),
+  '23514', null,
+  'dose maior que o times_per_day do tratamento é RECUSADA');
+select throws_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('aaaaaaaa-0000-4000-a000-000000000003',
+                     'aaaaaaaa-0000-4000-a000-000000000002', current_date - 1, 2, 'feito', '%s') $q$,
+         tests.get_supabase_uid('mae_a')),
+  '23514', null,
+  'tratamento de 1 vez por dia (atropina) não aceita dose 2');
+
+-- child_routines: preferência pessoal do responsável
+select lives_ok(
+  format($q$ insert into public.child_routines (guardian_user_id, child_id, wake_time, bed_time)
+             values ('%s', 'aaaaaaaa-0000-4000-a000-000000000002', '06:30', '20:30') $q$,
+         tests.get_supabase_uid('mae_a')),
+  'responsável A grava a rotina da própria criança');
+select results_eq('select count(*) from public.child_routines', array[1::bigint],
+  'responsável A lê a própria rotina');
+select results_eq(
+  $q$ with u as (
+        update public.child_routines set bed_time = '21:30'
+        where child_id = 'aaaaaaaa-0000-4000-a000-000000000002'
+        returning 1)
+      select count(*)::int from u $q$,
+  array[1],
+  'responsável A atualiza a própria rotina');
+select throws_ok(
+  format($q$ insert into public.child_routines (guardian_user_id, child_id)
+             values ('%s', 'bbbbbbbb-0000-4000-a000-000000000002') $q$,
+         tests.get_supabase_uid('mae_a')),
+  '42501', null,
+  'rotina para criança de OUTRA família é RECUSADA');
+select throws_ok(
+  format($q$ insert into public.child_routines (guardian_user_id, child_id)
+             values ('%s', 'aaaaaaaa-0000-4000-a000-000000000002') $q$,
+         tests.get_supabase_uid('mae_b')),
+  '42501', null,
+  'rotina com guardian_user_id de OUTRA pessoa é RECUSADA');
+select throws_ok(
+  $q$ update public.child_routines set bed_time = '06:00'
+      where child_id = 'aaaaaaaa-0000-4000-a000-000000000002' $q$,
+  '23514', null,
+  'rotina com dormir antes de acordar é recusada');
+
+select tests.authenticate_as('mae_b');
+select results_eq('select count(*) from public.child_routines', array[0::bigint],
+  'responsável B NÃO lê a rotina gravada pela mãe A');
+select results_eq(
+  $q$ with u as (
+        update public.child_routines set wake_time = '05:00'
+        where child_id = 'aaaaaaaa-0000-4000-a000-000000000002'
+        returning 1)
+      select count(*)::int from u $q$,
+  array[0],
+  'responsável B NÃO altera a rotina da família A (0 linhas afetadas)');
+
+select tests.authenticate_as('betania');
+select results_eq('select count(*) from public.child_routines', array[0::bigint],
+  'staff NÃO lê child_routines (preferência pessoal do responsável)');
+select throws_ok(
+  format($q$ insert into public.child_routines (guardian_user_id, child_id)
+             values ('%s', 'aaaaaaaa-0000-4000-a000-000000000002') $q$,
+         tests.get_supabase_uid('betania')),
+  '42501', null,
+  'staff NÃO grava rotina de criança');
+
+-- Troca de regime com doses: Colírio Z de 4x vira 2x no mesmo dia, com 3 doses
+-- já registradas. "Hoje" é a data lógica do app (São Paulo, corte às 04h).
+reset role;
+insert into public.treatments (id, child_id, type, name, times_per_day, starts_on) values
+  ('bbbbbbbb-0000-4000-a000-000000000004', 'bbbbbbbb-0000-4000-a000-000000000002',
+   'colirio', 'Colírio Z', 4,
+   ((now() at time zone 'America/Sao_Paulo') - interval '4 hours')::date - 5);
+insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+select 'bbbbbbbb-0000-4000-a000-000000000004', 'bbbbbbbb-0000-4000-a000-000000000002',
+       ((now() at time zone 'America/Sao_Paulo') - interval '4 hours')::date,
+       d, 'feito', tests.get_supabase_uid('mae_b')
+  from generate_series(1, 3) as d;
+update public.treatments
+   set active = false, ends_on = (now() at time zone 'America/Sao_Paulo')::date
+ where id = 'bbbbbbbb-0000-4000-a000-000000000004';
+insert into public.treatments (id, child_id, type, name, times_per_day, starts_on) values
+  ('bbbbbbbb-0000-4000-a000-000000000005', 'bbbbbbbb-0000-4000-a000-000000000002',
+   'colirio', 'Colírio Z', 2, (now() at time zone 'America/Sao_Paulo')::date);
+
+select results_eq(
+  $q$ select dose::int from public.adherence_logs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000005' order by dose $q$,
+  array[1, 2],
+  'troca de regime 4x -> 2x: só as doses 1 e 2 do dia passam para o regime novo');
+select results_eq(
+  $q$ select dose::int from public.adherence_logs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000004' order by dose $q$,
+  array[3],
+  'troca de regime 4x -> 2x: a dose 3 fica no regime encerrado, sem duplicar');
+select throws_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('bbbbbbbb-0000-4000-a000-000000000004',
+                     'bbbbbbbb-0000-4000-a000-000000000002',
+                     ((now() at time zone 'America/Sao_Paulo') - interval '4 hours')::date,
+                     2, 'feito', '%s') $q$,
+         tests.get_supabase_uid('mae_b')),
+  '23505', null,
+  'check-in da dose 2 pelo regime encerrado é redirecionado ao novo e não duplica');
+select throws_ok(
+  format($q$ insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, logged_by)
+             values ('bbbbbbbb-0000-4000-a000-000000000004',
+                     'bbbbbbbb-0000-4000-a000-000000000002',
+                     ((now() at time zone 'America/Sao_Paulo') - interval '4 hours')::date,
+                     4, 'feito', '%s') $q$,
+         tests.get_supabase_uid('mae_b')),
+  '23514', null,
+  'dose 4 pelo regime encerrado: validada DEPOIS do redirecionamento (novo só tem 2)');
+
+-- ------------------------------------------------------------
 -- T66..T67 — criança arquivada some do app, mas não da clínica
 -- ------------------------------------------------------------
 reset role;   -- volta a postgres (dono) para arquivar a criança A
@@ -417,6 +593,30 @@ select results_eq('select count(*) from public.children', array[0::bigint],
 select tests.authenticate_as('betania');
 select results_eq('select count(*) from public.children', array[2::bigint],
   'criança arquivada CONTINUA visível para o staff (registro clínico)');
+
+-- ------------------------------------------------------------
+-- MURAL DE CONTEÚDOS
+-- ------------------------------------------------------------
+select tests.clear_authentication();
+select throws_ok('select count(*) from public.contents', '42501', null, 'anon: contents bloqueada');
+
+select tests.authenticate_as('dra_christiane');
+select lives_ok($$insert into public.contents (id, title, youtube_url, category, published)
+  values ('cccccccc-0000-4000-a000-000000000001', 'Vídeo publicado', 'https://youtu.be/abcdefghijk', 'lente', true)$$,
+  'staff publica conteúdo com link do YouTube');
+select lives_ok($$insert into public.contents (id, title, body, published)
+  values ('cccccccc-0000-4000-a000-000000000002', 'Rascunho', 'texto', false)$$,
+  'staff cria rascunho');
+select throws_ok($$insert into public.contents (title, youtube_url) values ('Link ruim', 'https://exemplo.com/video')$$,
+  '23514', null, 'link que não é do YouTube é recusado');
+
+select tests.authenticate_as('mae_a');
+select results_eq('select count(*) from public.contents', array[1::bigint],
+  'responsável lê só o conteúdo publicado');
+select throws_ok($$insert into public.contents (title, body) values ('Da família', 'x')$$,
+  '42501', null, 'responsável NÃO cria conteúdo');
+select is_empty($$update public.contents set title = 'alterado' where id = 'cccccccc-0000-4000-a000-000000000001' returning 1$$,
+  'responsável NÃO edita conteúdo (0 linhas)');
 
 select * from finish();
 rollback;

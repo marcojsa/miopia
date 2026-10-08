@@ -7,8 +7,9 @@
 --   secretaria@example.com  → Betânia (staff/secretaria)
 --   responsavel@example.com → Fernanda (responsável da Família Souza)
 --
--- Família Souza: Alice (atropina) e Pedro (ortho_k), com medições
--- retroativas realistas e check-ins da última semana.
+-- Família Souza: Alice (atropina + colírio 4x ao dia) e Pedro (ortho_k), com
+-- medições retroativas realistas, check-ins da última semana e a rotina
+-- (acorda/dorme) da Alice.
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -172,3 +173,41 @@ insert into public.consents (user_id, guardian_name_snapshot, term_id, child_id,
 insert into public.reminder_prefs (guardian_user_id, treatment_id, reminder_time, enabled) values
   ('20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', '20:30', true),
   ('20000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', '21:15', true);
+
+-- ------------------------------------------------------------
+-- 9. Lumi geral: colírio de várias doses e rotina da criança
+--    (docs/especificacao-lumi-geral.md). Alice passa a ter, além da
+--    atropina, um colírio 4 vezes por dia; ontem teve as 4 doses
+--    registradas (uma delas "não foi possível").
+-- ------------------------------------------------------------
+insert into public.treatments
+  (id, child_id, type, name, times_per_day, instructions, starts_on, created_by) values
+  ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001',
+   'colirio', 'Lubrificante', 4, '1 gota em cada olho',
+   current_date - 30, '10000000-0000-4000-8000-000000000001');
+
+insert into public.adherence_logs (treatment_id, child_id, log_date, dose, status, note, logged_by) values
+  ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001',
+   current_date - 1, 1, 'feito', null, '20000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001',
+   current_date - 1, 2, 'feito', null, '20000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001',
+   current_date - 1, 3, 'pulado', 'Estava na escola, não deu', '20000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001',
+   current_date - 1, 4, 'feito', null, '20000000-0000-4000-8000-000000000001');
+
+insert into public.child_routines (guardian_user_id, child_id, wake_time, bed_time) values
+  ('20000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '07:00', '21:00');
+
+-- ------------------------------------------------------------
+-- 10. Mural da clínica: um vídeo publicado, um texto publicado e um rascunho.
+-- ------------------------------------------------------------
+insert into public.contents (id, title, body, youtube_url, category, sort_order, published) values
+  ('60000000-0000-4000-8000-000000000001', 'Como pingar o colírio',
+   'Lave as mãos, incline a cabeça da criança para trás e pingue sem encostar o bico no olho. Nunca compartilhe o frasco.',
+   'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'colirio', 1, true),
+  ('60000000-0000-4000-8000-000000000002', 'Cuidados com os óculos',
+   'Guarde sempre no estojo, limpe com a flanela e segure pelas duas hastes ao tirar.',
+   null, 'oculos', 2, true),
+  ('60000000-0000-4000-8000-000000000003', 'Como colocar a lente (rascunho)',
+   'Em preparação.', null, 'lente', 3, false);

@@ -53,6 +53,7 @@ const ALL_TABLES = [
   "family_invites",
   "push_tokens",
   "deletion_requests",
+  "child_routines",
 ];
 
 // ---------- relatório ----------
@@ -202,6 +203,17 @@ async function main() {
     "treatments",
   );
 
+  // colírio 2x ao dia da criança A (coexiste com a atropina): exercita a dose
+  const [colirioA] = must(
+    await admin
+      .from("treatments")
+      .insert([
+        { child_id: childA.id, type: "colirio", name: "SMOKE Lubrificante", times_per_day: 2, instructions: "1 gota em cada olho" },
+      ])
+      .select("id, child_id"),
+    "treatments (colírio)",
+  );
+
   must(
     await admin.from("measurements").insert([
       { child_id: childA.id, measured_on: isoDaysAgo(30), od_sphere: -2.0, oe_sphere: -2.25, od_axial_mm: 24.1, oe_axial_mm: 24.05, recorded_by: users.staff.id },
@@ -315,6 +327,42 @@ async function main() {
     });
     report("A NÃO cria preferência p/ tratamento de outra família", Boolean(error), error ? "" : "insert passou!");
   }
+  {
+    const { error } = await maeA.from("child_routines").insert({
+      guardian_user_id: maeAId,
+      child_id: childA.id,
+      wake_time: "07:00",
+      bed_time: "21:00",
+    });
+    report("A cria a rotina (acorda/dorme) da própria criança", !error, error?.message ?? "");
+  }
+  {
+    const { error } = await maeA.from("child_routines").insert({
+      guardian_user_id: maeAId,
+      child_id: childB.id,
+      wake_time: "07:00",
+      bed_time: "21:00",
+    });
+    report("A NÃO cria rotina p/ criança da família B", Boolean(error), error ? "" : "insert passou!");
+  }
+  {
+    const base = {
+      treatment_id: colirioA.id,
+      child_id: childA.id,
+      log_date: isoDaysAgo(0),
+      status: "feito",
+      logged_by: maeAId,
+    };
+    const first = await maeA.from("adherence_logs").insert({ ...base, dose: 1 });
+    const second = await maeA.from("adherence_logs").insert({ ...base, dose: 2 });
+    report(
+      "colírio 2x ao dia: a segunda dose do dia passa",
+      !first.error && !second.error,
+      first.error?.message ?? second.error?.message ?? "",
+    );
+    const third = await maeA.from("adherence_logs").insert({ ...base, dose: 3 });
+    report("dose acima do times_per_day é recusada", Boolean(third.error), third.error ? "" : "insert passou!");
+  }
 
   // --- 4. persona RESPONSÁVEL B (simetria: nada da família A vaza) ---
   console.log("\nPersona: responsável B");
@@ -388,6 +436,14 @@ async function main() {
       .in("treatment_id", [treatA.id, treatB.id]);
     const ok = !error && data.length === 0;
     report("staff NÃO enxerga preferências pessoais de lembrete", ok, error?.message ?? `linhas: ${data?.length}`);
+  }
+  {
+    const { data, error } = await staff
+      .from("child_routines")
+      .select("child_id")
+      .in("child_id", [childA.id, childB.id]);
+    const ok = !error && data.length === 0;
+    report("staff NÃO enxerga a rotina gravada pelo responsável", ok, error?.message ?? `linhas: ${data?.length}`);
   }
 
   // --- 6. limpeza final ---
