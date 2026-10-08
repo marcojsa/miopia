@@ -1,12 +1,30 @@
 /*
- * PLACEHOLDER ESTRUTURAL — gate de design.
- *
- * Os mockups ainda NÃO foram aprovados pelo Marco. Portanto este CSS é o
- * MÍNIMO de layout para o painel ser usável em testes (espaçamento, tabela
- * legível, formulário em coluna). SEM identidade visual: sem paleta da marca,
- * sem tipografia da marca, sem coruja, sem céu noturno. Tudo isso entra depois
- * que os mockups forem aprovados. NÃO tratar este arquivo como design final.
+ * Visual do painel da clínica — identidade do Lumi (roxo, coruja, Nunito + Inter).
+ * As telas são HTML semântico (main, section, table, form, fieldset); o estilo
+ * se apoia nos elementos, com poucas classes: .topbar, .login, .error, .muted, .ghost.
+ * Uso em desktop pela médica e pela secretária: texto grande o bastante,
+ * contraste alto e nenhum significado clínico transmitido por cor.
  */
+
+:root {
+  --roxo-900: #2a2350;
+  --roxo-700: #372e7a;
+  --roxo: #453a94;
+  --roxo-500: #5b4fb5;
+  --roxo-200: #c9c2ee;
+  --roxo-100: #e9e6f8;
+  --roxo-50: #f4f2fc;
+  --tinta: #1f1b3a;
+  --tinta-2: #4b4766;
+  --tinta-3: #6f6b8a;
+  --linha: #dedaf0;
+  --fundo: #f6f5fb;
+  --branco: #fff;
+  --erro: #a3172f;
+  --erro-fundo: #fdecef;
+  --raio: 12px;
+  --sombra: 0 1px 2px rgb(42 35 80 / 6%), 0 4px 14px rgb(42 35 80 / 6%);
+}
 
 * {
   box-sizing: border-box;
@@ -14,69 +32,439 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
   line-height: 1.5;
-  color: #111;
-  background: #fff;
+  color: var(--tinta);
+  background: var(--fundo);
 }
 
-main {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 1.5rem;
+h1,
+h2,
+h3 {
+  font-family: Nunito, Inter, system-ui, sans-serif;
+  color: var(--roxo-900);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0 0 0.25rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0 0 0.9rem;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 1.2rem 0 0.5rem;
+}
+
+p {
+  margin: 0.4rem 0;
 }
 
 a {
-  color: inherit;
+  color: var(--roxo);
+  font-weight: 600;
+  text-decoration: none;
 }
 
-button {
-  font: inherit;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
+a:hover {
+  text-decoration: underline;
 }
 
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+hr {
+  border: 0;
+  border-top: 1px solid var(--linha);
+  margin: 1rem 0;
+}
+
+/* ---------- Barra superior ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.6rem 1.5rem;
+  background: linear-gradient(100deg, var(--roxo-900), var(--roxo-700));
+  color: var(--branco);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.topbar .brand strong {
+  display: block;
+  font-family: Nunito, sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  line-height: 1.1;
+}
+
+.topbar .brand span {
+  font-size: 0.78rem;
+  color: var(--roxo-200);
+}
+
+.topbar nav {
+  display: flex;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.topbar nav a {
+  color: var(--roxo-100);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.topbar nav a:hover {
+  background: rgb(255 255 255 / 10%);
+  text-decoration: none;
+}
+
+.topbar nav a.active {
+  background: var(--branco);
+  color: var(--roxo-900);
+}
+
+.topbar .account {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.topbar .account small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--roxo-200);
+}
+
+/* ---------- Página ---------- */
+
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 4rem;
+}
+
+main > section,
+main > form,
+main > fieldset {
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 1.25rem 1.4rem;
+  margin: 1.25rem 0;
+}
+
+section section {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--linha);
+}
+
+/* ---------- Formulários ---------- */
+
+label {
+  display: block;
+  margin: 0.7rem 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--tinta-2);
+}
+
+label br {
+  display: none;
 }
 
 input,
 select,
 textarea {
   font: inherit;
-  padding: 0.35rem 0.5rem;
+  font-weight: 400;
+  color: var(--tinta);
+  background: var(--branco);
+  border: 1px solid #bcb6dc;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  margin-top: 0.3rem;
+  min-height: 2.5rem;
 }
 
-label {
+label > input:not([type='checkbox']):not([type='radio']),
+label > select,
+label > textarea {
   display: block;
-  margin: 0.5rem 0;
+  width: 100%;
+  max-width: 26rem;
 }
+
+textarea {
+  max-width: 40rem !important;
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  min-height: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0 0.4rem 0 0;
+  vertical-align: -2px;
+  accent-color: var(--roxo);
+}
+
+input[type='number'],
+input[type='date'],
+input[type='time'] {
+  max-width: 12rem !important;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--roxo-200);
+  outline-offset: 1px;
+  border-color: var(--roxo);
+}
+
+fieldset {
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+  margin: 1rem 0;
+  padding: 0.9rem 1.1rem 1rem;
+  min-width: 0;
+}
+
+legend {
+  font-family: Nunito, sans-serif;
+  font-weight: 800;
+  color: var(--roxo-900);
+  padding: 0 0.4rem;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--branco);
+  background: var(--roxo);
+  border: 1px solid var(--roxo);
+  border-radius: 999px;
+  padding: 0.5rem 1.15rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+  margin: 0.4rem 0.4rem 0.2rem 0;
+}
+
+button:hover:not(:disabled) {
+  background: var(--roxo-700);
+  border-color: var(--roxo-700);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Botões secundários: os de dentro de tabela e os marcados como .ghost */
+td button,
+button.ghost,
+button[type='button'] {
+  color: var(--roxo);
+  background: var(--branco);
+  border-color: var(--roxo-200);
+}
+
+td button:hover:not(:disabled),
+button.ghost:hover:not(:disabled),
+button[type='button']:hover:not(:disabled) {
+  background: var(--roxo-50);
+  border-color: var(--roxo);
+}
+
+.topbar button.ghost {
+  color: var(--branco);
+  background: transparent;
+  border-color: rgb(255 255 255 / 40%);
+  margin: 0;
+  min-height: 2.1rem;
+  padding: 0.3rem 0.9rem;
+}
+
+.topbar button.ghost:hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+  border-color: var(--branco);
+}
+
+/* ---------- Tabelas ---------- */
 
 table {
   border-collapse: collapse;
   width: 100%;
+  font-size: 0.93rem;
+  font-variant-numeric: tabular-nums;
 }
 
 th,
 td {
-  border: 1px solid #ccc;
-  padding: 0.4rem 0.6rem;
+  padding: 0.6rem 0.75rem;
   text-align: left;
+  border-bottom: 1px solid var(--linha);
+  vertical-align: middle;
 }
 
-fieldset {
-  margin: 1rem 0;
+th {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  background: var(--roxo-50);
+  border-bottom: 1px solid var(--roxo-200);
 }
 
-.error {
-  color: #b00020;
+tbody tr:hover {
+  background: #faf9fe;
 }
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td button {
+  margin: 0 0.3rem 0 0;
+  min-height: 2rem;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1.2rem;
+  margin: 0.6rem 0;
+}
+
+dt {
+  color: var(--tinta-3);
+  font-size: 0.88rem;
+}
+
+dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---------- Mensagens ---------- */
 
 .muted {
-  color: #555;
+  color: var(--tinta-3);
+}
+
+.error,
+ul.errors {
+  color: var(--erro);
+  background: var(--erro-fundo);
+  border: 1px solid #f3c2ca;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  margin: 0.7rem 0;
+  font-weight: 500;
 }
 
 ul.errors {
-  color: #b00020;
+  padding-left: 1.8rem;
+}
+
+/* ---------- Login ---------- */
+
+main.login {
+  max-width: 25rem;
+  margin: 7vh auto 0;
+  text-align: center;
+}
+
+main.login form {
+  text-align: left;
+  margin-top: 1.5rem;
+}
+
+main.login label > input {
+  max-width: none !important;
+}
+
+main.login button {
+  width: 100%;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+  }
+
+  main {
+    padding: 1.1rem 0.9rem 3rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* ---------- Ficha de cada criança ---------- */
+
+article.crianca {
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  border-left: 5px solid var(--roxo-500);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 1.1rem 1.4rem 1.3rem;
+  margin: 1.25rem 0;
+}
+
+article.crianca > h3:first-child {
+  font-size: 1.2rem;
+  margin-top: 0;
+}
+
+article.crianca section {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--linha);
+}
+
+/* Recado da médica: coluna larga o bastante para não virar uma tira */
+td:nth-last-child(2) {
+  min-width: 14rem;
+}
+
+/* Tabelas largas (medições têm 12 colunas) rolam dentro do próprio bloco */
+article.crianca section,
+main > section {
+  overflow-x: auto;
 }

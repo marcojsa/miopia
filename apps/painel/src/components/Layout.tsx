@@ -1,7 +1,8 @@
-// Casca de navegação do painel (placeholder estrutural — sem identidade visual).
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+// Casca de navegação do painel: barra superior com a marca, as seções e a conta.
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
+import { Owl } from '@/components/Owl';
 import { STAFF_ROLE_LABELS } from '@/lib/labels';
 
 export function Layout() {
@@ -15,24 +16,30 @@ export function Layout() {
 
   return (
     <>
-      <header>
+      <header className="topbar">
+        <div className="brand">
+          <Owl size={34} />
+          <div>
+            <strong>Lumi</strong>
+            <span>Painel da clínica</span>
+          </div>
+        </div>
         <nav>
-          <Link to="/familias">Famílias</Link>
-          {' · '}
-          <Link to="/convites">Convites</Link>
+          <NavLink to="/familias">Famílias</NavLink>
+          <NavLink to="/convites">Convites</NavLink>
         </nav>
-        <p className="muted">
-          {staff ? (
-            <>
-              {staff.display_name} ({STAFF_ROLE_LABELS[staff.role]}){' '}
-              <button type="button" onClick={() => void handleSignOut()}>
-                Sair
-              </button>
-            </>
-          ) : null}
-        </p>
+        {staff ? (
+          <div className="account">
+            <span>
+              {staff.display_name}
+              <small>{STAFF_ROLE_LABELS[staff.role]}</small>
+            </span>
+            <button type="button" className="ghost" onClick={() => void handleSignOut()}>
+              Sair
+            </button>
+          </div>
+        ) : null}
       </header>
-      <hr />
       <Outlet />
     </>
   );

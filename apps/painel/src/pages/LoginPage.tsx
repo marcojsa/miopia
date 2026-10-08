@@ -5,6 +5,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/auth/AuthContext';
 import { toPtBr } from '@/lib/errors';
+import { Owl } from '@/components/Owl';
 
 interface LocationState {
   from?: { pathname: string };
@@ -42,7 +43,8 @@ export function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="login">
+      <Owl size={72} />
       <h1>Painel da clínica</h1>
       <p className="muted">Oftalmologia Alto de Pinheiros — acesso da equipe.</p>
 

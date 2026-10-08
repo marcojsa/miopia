@@ -131,9 +131,10 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
             ))}
           </tbody>
         </table>
-      ) : (
+      ) : null}
+      {treatments && treatments.length === 0 ? (
         <p className="muted">Nenhum tratamento cadastrado.</p>
-      )}
+      ) : null}
       {endError ? <p className="error">{endError}</p> : null}
 
       <h4>Novo tratamento</h4>

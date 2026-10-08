@@ -137,7 +137,7 @@ export function FamilyDetailPage() {
       ) : null}
 
       {children?.map((child) => (
-        <article key={child.id} style={{ border: '1px solid #ccc', padding: '1rem', margin: '1rem 0' }}>
+        <article key={child.id} className="crianca">
           <h2>
             {child.first_name}{' '}
             <span className="muted">(nasc. {fmtDate(child.birth_date)})</span>

@@ -83,9 +83,10 @@ export function MeasurementsSection({ childId }: { childId: string }) {
             ))}
           </tbody>
         </table>
-      ) : (
+      ) : null}
+      {measurements && measurements.length === 0 ? (
         <p className="muted">Nenhuma medição registrada.</p>
-      )}
+      ) : null}
       {actionError ? <p className="error">{actionError}</p> : null}
       <p className="muted">
         EE = equivalente esférico (esfera + cilindro/2), calculado pelo banco.
