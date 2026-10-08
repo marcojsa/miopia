@@ -1,5 +1,5 @@
 // O CÉU (modo criança) — tela cheia, sem tab bar (mockup docs/mockups/ceu.html,
-// coruja estilo A). Aberta pela tab Hoje (SkyTeaserCard -> router.push('/ceu')).
+// coruja estilo A). É uma das abas; o card da Hoje também leva até aqui.
 // Mostra, sobre o gradiente do céu: o mês corrente de noites de cuidado do filho
 // ativo (estrelas por computeSky), o progresso até o próximo marco, os 3 marcos
 // 7/30/90, os escudos guardados e a Lumi com um incentivo contextual.
@@ -7,11 +7,10 @@
 // REGRAS DURAS (ANVISA RDC 657/2022 + LGPD): NENHUM dado/número clínico aparece
 // aqui — a recompensa é sempre por ADESÃO (noites de cuidado), jamais por
 // resultado de consulta. Amarelo-estrela é exclusivo das estrelas/escudos/marcos.
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RequireSession } from '@/components/auth/RequireSession';
@@ -23,7 +22,6 @@ import {
   SkyCanvas,
   SkyLegend,
 } from '@/components/ceu';
-import { XIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, EmptyState, Screen } from '@/components/ui';
 import { dueCareCount } from '@/components/hoje/hojeHelpers';
@@ -61,7 +59,6 @@ export default function CeuScreen() {
 }
 
 function CeuScreenContent() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const activeChildId = useUiStore((s) => s.activeChildId);
@@ -129,15 +126,6 @@ function CeuScreenContent() {
 
   const header = (
     <View style={[styles.topbar, { paddingTop: insets.top + spacing.sm }]}>
-      <Pressable
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Fechar o céu"
-        hitSlop={8}
-        style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
-      >
-        <XIcon size={18} color={colors.white} />
-      </Pressable>
       <View style={styles.title} pointerEvents="none">
         <AppText style={styles.month} color={colors.purple200}>
           {monthLabel}
@@ -244,7 +232,6 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     alignItems: 'center',
-    marginRight: 38, // compensa o X p/ centralizar o título
   },
   month: {
     fontFamily: fonts.interSemiBold,

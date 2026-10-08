@@ -9,7 +9,7 @@ import { Redirect, Tabs, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { StaffAccountScreen } from '@/components/auth/StaffAccountScreen';
-import { DocumentIcon, MoonIcon, PeopleIcon } from '@/components/icons';
+import { DocumentIcon, MoonIcon, PeopleIcon, StarIcon } from '@/components/icons';
 import { NotificationPrimer } from '@/components/notificacoes/NotificationPrimer';
 import { BootScreen } from '@/components/ui';
 import {
@@ -116,6 +116,13 @@ export default function AppLayout() {
           options={{
             title: 'Hoje',
             tabBarIcon: ({ color, size }) => <MoonIcon color={color} size={size ?? 24} />,
+          }}
+        />
+        <Tabs.Screen
+          name="ceu"
+          options={{
+            title: 'Céu',
+            tabBarIcon: ({ color, size }) => <StarIcon color={color} size={size ?? 24} />,
           }}
         />
         <Tabs.Screen

@@ -114,13 +114,14 @@ function useOutboxSync() {
 // boas-vindas, Céu, links de convite e senha) pedem ícones claros; o resto tem
 // topo claro. Um único StatusBar na raiz evita que as abas (que ficam todas
 // montadas) disputem o estilo entre si.
-const ROTAS_TOPO_ESCURO = new Set(['(auth)', 'ceu', 'convite', 'recuperar-senha']);
+const ROTAS_TOPO_ESCURO = new Set(['(auth)', 'convite', 'recuperar-senha']);
 
 function RouteStatusBar() {
   const segments = useSegments() as string[];
   const [first, second] = segments;
   const hoje = first === '(app)' && (second === undefined || second === 'index');
-  const escuro = hoje || (first !== undefined && ROTAS_TOPO_ESCURO.has(first));
+  const ceu = first === '(app)' && second === 'ceu';
+  const escuro = hoje || ceu || (first !== undefined && ROTAS_TOPO_ESCURO.has(first));
   return <StatusBar style={escuro ? 'light' : 'dark'} />;
 }
 
@@ -158,9 +159,6 @@ export default function RootLayout() {
             name="checkin/[id]"
             options={{ presentation: 'modal', headerShown: true, title: 'Check-in' }}
           />
-          {/* Céu da criança: tela cheia sobre tudo, sem tab bar (mockup ceu.html).
-              A rota app/ceu.tsx é criada pelo agente da tela Céu. */}
-          <Stack.Screen name="ceu" options={{ presentation: 'fullScreenModal' }} />
           {/* Links de e-mail (convite e recuperação): fora dos guards, abrem a sessão pelo link. */}
           <Stack.Screen name="convite" />
           <Stack.Screen name="recuperar-senha" />
