@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Controle da Miopia",
+    "name": "Lumi",
     "slug": "miopia-mobile",
     "owner": "marcojsa",
     "version": "0.1.0",
@@ -9,12 +9,12 @@
     "scheme": "miopia",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "br.med.oftalmoaltodepinheiros.lumi",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2A2350",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -27,15 +27,19 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#453A94"
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "backgroundColor": "#2A2350",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180
         }
       ],
       "expo-font"
