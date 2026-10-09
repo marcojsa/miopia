@@ -27,6 +27,7 @@ export function Layout() {
         <nav>
           <NavLink to="/familias">Famílias</NavLink>
           <NavLink to="/convites">Convites</NavLink>
+          <NavLink to="/mural">Mural</NavLink>
         </nav>
         {staff ? (
           <div className="account">

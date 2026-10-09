@@ -1,5 +1,5 @@
 // Rótulos pt-BR para enums do banco. UI em pt-BR; identificadores em inglês.
-import type { ClinicalStatus, StaffRole, TreatmentType } from '@/types/database';
+import type { ClinicalStatus, ContentCategory, StaffRole, TreatmentType } from '@/types/database';
 
 export const TREATMENT_TYPE_LABELS: Record<TreatmentType, string> = {
   atropina: 'Atropina',
@@ -8,6 +8,17 @@ export const TREATMENT_TYPE_LABELS: Record<TreatmentType, string> = {
   colirio: 'Colírio',
   lente_contato: 'Lente de contato',
 };
+
+export const CONTENT_CATEGORY_LABELS: Record<ContentCategory, string> = {
+  lente: 'Lente de contato',
+  colirio: 'Colírio',
+  oculos: 'Óculos',
+  geral: 'Geral',
+};
+
+export function fmtTimesPerDay(times: number): string {
+  return `${times}x ao dia`;
+}
 
 export const CLINICAL_STATUS_LABELS: Record<ClinicalStatus, string> = {
   controle_adequado: 'Controle adequado',

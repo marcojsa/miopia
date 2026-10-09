@@ -11,6 +11,7 @@ import { FamiliesPage } from '@/pages/FamiliesPage';
 import { FamilyDetailPage } from '@/pages/FamilyDetailPage';
 import { NewMeasurementPage } from '@/pages/NewMeasurementPage';
 import { InvitesPage } from '@/pages/InvitesPage';
+import { MuralPage } from '@/pages/MuralPage';
 
 export function App() {
   return (
@@ -36,6 +37,7 @@ export function App() {
           element={<NewMeasurementPage />}
         />
         <Route path="/convites" element={<InvitesPage />} />
+        <Route path="/mural" element={<MuralPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/familias" replace />} />

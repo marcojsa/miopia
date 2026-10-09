@@ -468,3 +468,105 @@ article.crianca section,
 main > section {
   overflow-x: auto;
 }
+
+/* ---------- Mural ---------- */
+
+.miniatura {
+  display: block;
+  width: 9rem;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--linha);
+  background: var(--roxo-50);
+}
+
+.miniatura.previa {
+  width: 16rem;
+  margin: 0.4rem 0 0.8rem;
+}
+
+.miniatura.sem-video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--tinta-3);
+}
+
+ol.mural {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ol.mural li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid var(--linha);
+}
+
+ol.mural li:last-child {
+  border-bottom: 0;
+}
+
+ol.mural li.editando {
+  background: var(--roxo-50);
+  border-radius: 8px;
+}
+
+.mural-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mural-info strong {
+  color: var(--roxo-900);
+}
+
+.situacao {
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--linha);
+  color: var(--tinta-2);
+}
+
+.situacao.publicado {
+  border-color: var(--roxo-200);
+  background: var(--roxo-100);
+  color: var(--roxo-900);
+}
+
+.mural-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 30rem;
+}
+
+.mural-acoes button {
+  margin: 0.15rem 0 0.15rem 0.3rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  ol.mural li {
+    flex-wrap: wrap;
+  }
+
+  .mural-acoes {
+    max-width: none;
+    justify-content: flex-start;
+  }
+}

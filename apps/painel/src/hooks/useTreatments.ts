@@ -18,7 +18,7 @@ export function useTreatments(childId: string | undefined) {
       const { data, error } = await supabase
         .from('treatments')
         .select(
-          'id, child_id, type, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
+          'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
         )
         .eq('child_id', childId!)
         .order('created_at', { ascending: false });
@@ -30,6 +30,8 @@ export function useTreatments(childId: string | undefined) {
 
 // Criar tratamento. Constraint do banco: no máx. 1 ativo por tipo/criança
 // (uq_treatment_active) — um insert de tipo já ativo retorna erro 23505.
+// Colírio é a exceção: vários ativos, mas não dois com o mesmo nome
+// (uq_treatment_active_colirio, também 23505).
 export function useCreateTreatment(childId: string) {
   const queryClient = useQueryClient();
   const { session } = useAuth();
@@ -40,6 +42,8 @@ export function useCreateTreatment(childId: string) {
       const payload: TreatmentInsert = {
         child_id: childId,
         type: input.type,
+        name: input.name?.trim() || null,
+        times_per_day: input.times_per_day ?? 1,
         instructions: input.instructions?.trim() || null,
         suggested_time: input.suggested_time || null,
         days_of_week: input.days_of_week ?? [0, 1, 2, 3, 4, 5, 6],
@@ -52,7 +56,7 @@ export function useCreateTreatment(childId: string) {
         .from('treatments')
         .insert(payload)
         .select(
-          'id, child_id, type, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
+          'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
         )
         .single();
       if (error) throw error;

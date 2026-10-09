@@ -20,8 +20,15 @@ export type Child = Tables['children']['Row'];
 export type Treatment = Tables['treatments']['Row'];
 // od_se / oe_se são colunas GENERATED no banco — apenas lidas, nunca inseridas.
 export type Measurement = Tables['measurements']['Row'];
+export type Content = Tables['contents']['Row'];
+export type ContentCategory = 'lente' | 'colirio' | 'oculos' | 'geral';
 
 // ── Payloads de escrita (somente colunas que o painel insere) ────────────────
+export type ContentInput = Pick<
+  Tables['contents']['Insert'],
+  'title' | 'body' | 'youtube_url' | 'published'
+> & { category: ContentCategory };
+
 export type FamilyInsert = Pick<Tables['families']['Insert'], 'label' | 'created_by'>;
 
 export type ChildInsert = Pick<
@@ -40,6 +47,8 @@ export type TreatmentInsert = Pick<
   | 'ends_on'
   | 'active'
   | 'created_by'
+  | 'name'
+  | 'times_per_day'
 >;
 
 // EE (od_se/oe_se) fica FORA do payload de propósito: o gerador do Supabase

@@ -24,6 +24,24 @@ const PG_CODES: Record<string, string> = {
   PGRST116: 'Registro não encontrado.',
 };
 
+// Restrições com mensagem própria: o nome vem na mensagem do Postgres
+// ('... violates check constraint "nome"').
+const CONSTRAINTS: Record<string, string> = {
+  uq_treatment_active:
+    'Já existe um tratamento ativo desse tipo para esta criança. Encerre o atual antes de criar outro.',
+  uq_treatment_active_colirio:
+    'Já existe um colírio ativo com esse nome para esta criança. Encerre o atual antes de cadastrar outro com o mesmo nome.',
+  treatments_times_per_day_faixa: 'Vezes por dia precisa ficar entre 1 e 6.',
+  treatments_times_per_day_so_colirio_e_lente:
+    'Atropina, ortho-k e óculos são registrados com 1 vez por dia. Só colírio aceita mais vezes.',
+  contents_title_check: 'Informe um título de até 120 caracteres.',
+  contents_body_check: 'O texto pode ter no máximo 4.000 caracteres.',
+  contents_youtube_url_check:
+    'Link do YouTube não reconhecido. Use um link youtube.com/watch?v=, youtu.be/, youtube.com/shorts/ ou youtube.com/embed/.',
+  contents_category_check: 'Categoria inválida.',
+  contents_tem_texto_ou_video: 'O conteúdo precisa ter um texto ou um link do YouTube.',
+};
+
 function readField(err: unknown, field: 'code' | 'message'): string | undefined {
   if (err && typeof err === 'object' && field in err) {
     const value = (err as Record<string, unknown>)[field];
@@ -34,6 +52,11 @@ function readField(err: unknown, field: 'code' | 'message'): string | undefined 
 
 export function errorCode(err: unknown): string | undefined {
   return readField(err, 'code');
+}
+
+export function errorConstraint(err: unknown): string | undefined {
+  const message = readField(err, 'message') ?? '';
+  return /constraint "([^"]+)"/.exec(message)?.[1];
 }
 
 export function isNetworkError(err: unknown): boolean {
@@ -51,6 +74,8 @@ export function toPtBr(err: unknown, fallback = 'Ocorreu um erro. Tente novament
     if (/invalid login credentials/i.test(err.message)) return AUTH_CODES.invalid_credentials;
     return fallback;
   }
+  const constraint = errorConstraint(err);
+  if (constraint && CONSTRAINTS[constraint]) return CONSTRAINTS[constraint];
   const code = errorCode(err);
   if (code && PG_CODES[code]) return PG_CODES[code];
   // Erros lançados pelo próprio painel (new Error('Informe ...')) já estão em pt-BR.
