@@ -67,6 +67,10 @@ export function regimeLabel(type: TreatmentType): string {
       return 'Atropina';
     case 'ortho_k':
       return 'Ortho-k';
+    case 'colirio':
+      return 'Colírio';
+    case 'lente_contato':
+      return 'Lente de contato';
     case 'oculos_lentes':
     default:
       return 'Óculos / lentes';

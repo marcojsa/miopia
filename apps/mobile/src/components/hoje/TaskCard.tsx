@@ -10,14 +10,20 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { CheckIcon, DropIcon, LensIcon } from '@/components/icons';
 import { AppText, Button, Card, Pill } from '@/components/ui';
 import { colors, fonts, radii, spacing } from '@/theme/tokens';
-import type { TreatmentType } from '@/types/domain';
+import type { AdherenceStatus, TreatmentType } from '@/types/domain';
 
 export interface TaskCardProps {
   type: TreatmentType;
   title: string;
+  /** Linha da dose (ex.: "2ª de 4 · 11h40"), nos tratamentos de várias doses. */
+  subtitle?: string | null;
   instruction: string;
   /** Horário formatado (ex.: "20h30") ou null se sem horário sugerido. */
   time: string | null;
+  /** Dose nos tratamentos de várias doses (ex.: "2ª de 4"), para o leitor de tela. */
+  doseText?: string | null;
+  /** Resposta já registrada desta dose (ao corrigir a noite), ou null. */
+  currentStatus?: AdherenceStatus | null;
   /** true enquanto o check-in deste tratamento está sincronizando. */
   busy?: boolean;
   onDone: () => void;
@@ -26,11 +32,24 @@ export interface TaskCardProps {
 }
 
 function TaskIcon({ type }: { type: TreatmentType }) {
-  if (type === 'ortho_k') return <LensIcon size={22} color={colors.purple} />;
+  if (type === 'ortho_k' || type === 'lente_contato') {
+    return <LensIcon size={22} color={colors.purple} />;
+  }
   return <DropIcon size={22} color={colors.purple} />;
 }
 
-export function TaskCard({ type, title, instruction, time, busy = false, onDone, onSkip }: TaskCardProps) {
+export function TaskCard({
+  type,
+  title,
+  subtitle = null,
+  instruction,
+  time,
+  doseText = null,
+  currentStatus = null,
+  busy = false,
+  onDone,
+  onSkip,
+}: TaskCardProps) {
   const [skipping, setSkipping] = useState(false);
   const [note, setNote] = useState('');
   const noteRef = useRef<TextInput>(null);
@@ -43,7 +62,11 @@ export function TaskCard({ type, title, instruction, time, busy = false, onDone,
     }
     const trimmed = note.trim();
     onSkip(trimmed.length > 0 ? trimmed : null);
+    setSkipping(false);
+    setNote('');
   };
+
+  const a11yName = doseText ? `${title}, ${doseText}` : title;
 
   return (
     <Card style={styles.card}>
@@ -55,12 +78,26 @@ export function TaskCard({ type, title, instruction, time, busy = false, onDone,
           <AppText variant="cardTitle" numberOfLines={2}>
             {title}
           </AppText>
+          {subtitle ? (
+            <AppText variant="meta" color={colors.purple} style={styles.instruction}>
+              {subtitle}
+            </AppText>
+          ) : null}
           <AppText variant="meta" style={styles.instruction} numberOfLines={2}>
             {instruction}
           </AppText>
         </View>
         {time ? <Pill label={time} style={styles.timePill} textStyle={styles.timeText} /> : null}
       </View>
+
+      {currentStatus ? (
+        <Pill
+          label={currentStatus === 'feito' ? 'Resposta atual: Feito' : 'Resposta atual: Não foi possível'}
+          color={colors.ink}
+          backgroundColor={colors.surface}
+          style={styles.statusPill}
+        />
+      ) : null}
 
       {skipping ? (
         <TextInput
@@ -85,7 +122,7 @@ export function TaskCard({ type, title, instruction, time, busy = false, onDone,
           loading={busy}
           onPress={onDone}
           style={styles.doneBtn}
-          accessibilityLabel={`Marcar ${title} como feito`}
+          accessibilityLabel={`Marcar ${doseText ? `${a11yName},` : a11yName} como feito`}
         />
         <Button
           label={skipping ? 'Confirmar' : 'Não foi possível'}
@@ -94,7 +131,9 @@ export function TaskCard({ type, title, instruction, time, busy = false, onDone,
           onPress={handleSkipPress}
           style={styles.skipBtn}
           accessibilityLabel={
-            skipping ? `Confirmar que não foi possível: ${title}` : `Registrar que não foi possível: ${title}`
+            skipping
+              ? `Confirmar que não foi possível: ${a11yName}`
+              : `Registrar que não foi possível: ${a11yName}`
           }
         />
       </View>
@@ -130,6 +169,10 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: colors.purple,
+  },
+  statusPill: {
+    borderWidth: 1,
+    borderColor: colors.line,
   },
   noteInput: {
     minHeight: 56,

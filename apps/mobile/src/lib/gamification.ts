@@ -78,7 +78,7 @@ export function faltamNoites(n: number, so = false): string {
 
 /** Diz se a noite da data tinha cuidado programado (dias da semana, fim do tratamento). */
 export type IsNightDue = (date: string) => boolean;
-/** Quantos cuidados estavam programados na noite da data (um por tratamento). */
+/** Quantas doses estavam programadas na data (soma das vezes por dia de cada tratamento devido). */
 export type NightDueCount = (date: string) => number;
 const MAX_SHIELDS = 3;
 const NIGHTS_PER_SHIELD = 7;
@@ -129,9 +129,9 @@ interface Simulation {
 
 /**
  * Indexa os logs por data: a noite é COMPLETA quando todos os registros têm
- * status 'feito' e há pelo menos um registro por cuidado programado na noite
- * (`dueCount`; sem ele, basta >= 1 registro). Um 'pulado' na noite, ou um
- * cuidado ainda sem resposta, torna a noite incompleta — candidata a escudo.
+ * status 'feito' e há pelo menos um registro por dose programada no dia
+ * (`dueCount`; sem ele, basta >= 1 registro). Um 'pulado' em qualquer dose, ou
+ * uma dose ainda sem resposta, torna a noite incompleta — candidata a escudo.
  * Obs.: os logs são por tratamento; passe os logs de UMA criança.
  */
 function indexCompleteByDate(

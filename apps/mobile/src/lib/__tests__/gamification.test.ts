@@ -292,3 +292,15 @@ test('início muito antigo (ou ano digitado errado) não zera as noites recentes
     assert.equal(week.days.find((d) => d.date === '2026-10-06')?.state, 'gold', startsOn);
   }
 });
+
+test('doses do dia: 3 de 4 feitas não acende; 4 de 4 acende; um pulado não acende', () => {
+  const today = '2026-06-10';
+  const dueCount = () => 4;
+  const logs = (statuses: Array<'feito' | 'pulado'>): GamificationLog[] =>
+    statuses.map((status) => ({ log_date: today, status }));
+  const estado = (l: GamificationLog[]) =>
+    computeWeek(l, [], today, START, undefined, dueCount).days.find((d) => d.date === today)?.state;
+  assert.equal(estado(logs(['feito', 'feito', 'feito'])), 'today_pending');
+  assert.equal(estado(logs(['feito', 'feito', 'feito', 'feito'])), 'gold');
+  assert.equal(estado(logs(['feito', 'feito', 'feito', 'pulado'])), 'today_pending');
+});

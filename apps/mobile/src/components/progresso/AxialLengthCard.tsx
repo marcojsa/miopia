@@ -41,8 +41,8 @@ export function AxialLengthCard() {
       {expanded ? (
         <View style={styles.body}>
           <AppText variant="body" color={colors.ink} style={styles.paragraph}>
-            O comprimento axial é o tamanho do olho, medido em milímetros (mm). É a medida mais
-            precisa do acompanhamento do controle da miopia.
+            O comprimento axial é o tamanho do olho, medido em milímetros (mm). É uma das medidas
+            que a médica registra nas consultas de acompanhamento.
           </AppText>
           <AppText variant="body" color={colors.ink} style={styles.paragraph}>
             O olho cresce junto com a criança, e o objetivo do tratamento é acompanhar esse

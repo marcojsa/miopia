@@ -13,12 +13,18 @@ import {
   splitExpired,
 } from '../outboxCore.ts';
 
-function item(client_id: string, treatment_id: string, log_date = '2026-10-05'): PendingCheckin {
+function item(
+  client_id: string,
+  treatment_id: string,
+  log_date = '2026-10-05',
+  dose = 1
+): PendingCheckin {
   return {
     client_id,
     treatment_id,
     child_id: 'c1',
     log_date,
+    dose,
     status: 'feito',
     note: null,
     logged_by: 'u1',
@@ -46,6 +52,23 @@ test('replaceInQueue mantém um item por tratamento e noite', () => {
   assert.deepEqual(q.map((c) => c.client_id).sort(), ['b', 'c']);
   const otherNight = replaceInQueue(q, item('d', 't1', '2026-10-04'));
   assert.equal(otherNight.length, 3);
+});
+
+test('replaceInQueue separa as doses do mesmo dia', () => {
+  const q = replaceInQueue([item('a', 't1', '2026-10-05', 1)], item('b', 't1', '2026-10-05', 2));
+  assert.deepEqual(q.map((c) => c.client_id), ['a', 'b']);
+  const corrected = replaceInQueue(q, { ...item('c', 't1', '2026-10-05', 2), status: 'pulado' });
+  assert.deepEqual(corrected.map((c) => c.client_id), ['a', 'c']);
+  // Item antigo da fila, sem dose, vale como a dose 1.
+  const legacy = { ...item('velho', 't1'), dose: undefined } as unknown as PendingCheckin;
+  assert.deepEqual(replaceInQueue([legacy], item('novo', 't1', '2026-10-05', 1)).map((c) => c.client_id), ['novo']);
+});
+
+test('dose repetida, acima do tratamento ou barrada pela RLS é recusa definitiva', () => {
+  assert.equal(isPermanentRejection(409, '23505'), true);
+  assert.equal(isPermanentRejection(400, '23514'), true);
+  assert.equal(isPermanentRejection(401, '42501'), true);
+  assert.equal(isPermanentRejection(503, null), false);
 });
 
 test('itens fora da janela de 7 dias da RLS saem da fila em vez de travá-la', () => {

@@ -5,12 +5,17 @@ import type { PendingCheckin } from '../types/domain.ts';
 /** A policy adh_guardian_insert só aceita log_date entre current_date - 7 e current_date. */
 export const MAX_BACKFILL_DAYS = 7;
 
+const PERMANENT_CODES: ReadonlySet<string> = new Set(['23505', '23514', '42501']);
+
 /**
  * Status HTTP de uma resposta do PostgREST que NÃO adianta reenviar (a linha foi
  * recusada pelo banco: RLS 403, FK/tipo inválido 400/409...). 0 = sem rede;
  * 401 = token vencido; 408/429/5xx = transitório.
  */
-export function isPermanentRejection(status: number): boolean {
+export function isPermanentRejection(status: number, code?: string | null): boolean {
+  // Unique (23505), check/dose acima do tratamento (23514) e RLS (42501): o banco
+  // recusou a linha em si — reenviar não muda nada.
+  if (code && PERMANENT_CODES.has(code)) return true;
   if (status < 400 || status >= 500) return false;
   return status !== 401 && status !== 408 && status !== 429;
 }
@@ -37,10 +42,15 @@ export function removeResolved(
   return current.filter((c) => !resolved.has(c.client_id));
 }
 
-/** Um item por (treatment_id, log_date): a resposta mais recente substitui a anterior na fila. */
+/** Um item por (treatment_id, log_date, dose): a resposta mais recente substitui a anterior na fila. */
 export function replaceInQueue(queue: PendingCheckin[], item: PendingCheckin): PendingCheckin[] {
   const rest = queue.filter(
-    (c) => !(c.treatment_id === item.treatment_id && c.log_date === item.log_date)
+    (c) =>
+      !(
+        c.treatment_id === item.treatment_id &&
+        c.log_date === item.log_date &&
+        (c.dose ?? 1) === (item.dose ?? 1)
+      )
   );
   return [...rest, item];
 }

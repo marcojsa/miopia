@@ -11,7 +11,16 @@ export {
   type CheckinInput,
 } from './useAdherence';
 export { useMeasurements } from './useMeasurements';
+export { useHasMeasurements } from './useHasMeasurements';
+export { useContents } from './useContents';
 export { useReminderPrefs } from './useReminderPrefs';
+export {
+  ROUTINE_ERROR,
+  useChildRoutine,
+  useChildRoutines,
+  type SaveRoutineInput,
+  type UseChildRoutineResult,
+} from './useChildRoutine';
 export { useReminderSync, syncFamilyReminders } from './useReminderSync';
 export {
   useNotificationPermission,

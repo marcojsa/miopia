@@ -11,10 +11,17 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChevronIcon, PeopleIcon } from '@/components/icons';
-import { SettingsRow, ageLabel, regimeLabel, regimeSummary } from '@/components/familia';
+import { SettingsRow, ageLabel, regimeSummary, treatmentLabel } from '@/components/familia';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { AppText, Card, ChildAvatar, EmptyState, Screen, SectionHeader } from '@/components/ui';
-import { useChildren, usePausedChildIds, useReminderPrefs, useTreatments } from '@/hooks';
+import {
+  useChildRoutines,
+  useChildren,
+  usePausedChildIds,
+  useReminderPrefs,
+  useTreatments,
+} from '@/hooks';
+import { routineFor } from '@/lib/doseSchedule';
 import { signOutDoAparelho } from '@/lib/session';
 import { useSession } from '@/providers/auth';
 import { colors, spacing } from '@/theme/tokens';
@@ -27,6 +34,7 @@ export default function FamilyIndexScreen() {
   const childrenQuery = useChildren();
   const treatmentsQuery = useTreatments();
   const prefsQuery = useReminderPrefs();
+  const routinesQuery = useChildRoutines();
   const [signingOut, setSigningOut] = useState(false);
 
   const children = childrenQuery.data ?? [];
@@ -107,12 +115,13 @@ export default function FamilyIndexScreen() {
         ) : (
           children.map((child) => {
             const childTreatments = treatments.filter((t) => t.child_id === child.id);
+            const routine = routineFor(routinesQuery.data ?? [], child.id);
             const regime =
               childTreatments.length === 0
                 ? regimeSummary(undefined, prefs)
                 : pausedIds.has(child.id)
-                  ? `${childTreatments.map((t) => regimeLabel(t.type)).join(', ')} · Lembretes pausados (férias)`
-                  : childTreatments.map((t) => regimeSummary(t, prefs)).join(', ');
+                  ? `${childTreatments.map((t) => treatmentLabel(t)).join(', ')} · Lembretes pausados (férias)`
+                  : childTreatments.map((t) => regimeSummary(t, prefs, routine)).join('\n');
             const age = ageLabel(child.birth_date);
             return (
               <Pressable

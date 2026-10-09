@@ -18,7 +18,7 @@ import { queryKeys } from './keys';
 
 const MINUTE = 60 * 1000;
 
-const LOG_COLUMNS = 'id, treatment_id, child_id, log_date, status, note, logged_by, created_at';
+const LOG_COLUMNS = 'id, treatment_id, child_id, log_date, dose, status, note, logged_by, created_at';
 
 /**
  * Check-ins de HOJE (data lógica com corte 04h) de TODOS os filhos da família.
@@ -82,6 +82,8 @@ export interface CheckinInput {
   treatmentId: string;
   childId: string;
   status: AdherenceStatus; // 'feito' | 'pulado'
+  /** Dose do dia (1..times_per_day); padrão 1. */
+  dose?: number;
   note?: string | null;
   /** Correção de uma resposta já registrada hoje (sobrescreve no servidor). */
   replace?: boolean;
@@ -112,6 +114,7 @@ export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInpu
         treatment_id: input.treatmentId,
         child_id: input.childId,
         log_date: localDateString(),
+        dose: input.dose ?? 1,
         status: input.status,
         note: input.note ?? null,
         logged_by: userId,
@@ -132,6 +135,7 @@ export function useCheckinMutation(): UseMutationResult<void, Error, CheckinInpu
         treatment_id: input.treatmentId,
         child_id: input.childId,
         log_date: localDateString(),
+        dose: input.dose ?? 1,
         status: input.status,
         note: input.note ?? null,
         logged_by: userId,

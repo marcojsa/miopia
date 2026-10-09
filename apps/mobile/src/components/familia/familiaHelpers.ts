@@ -7,13 +7,28 @@
 // é dado cadastral (não clínico) e as instruções/horários vêm prescritos.
 import type {
   Child,
+  ChildRoutine,
   ChildScheduleInput,
+  DoseReminderInput,
   ReminderPref,
   ReminderSchedule,
   ReminderTime,
   Treatment,
   TreatmentType,
 } from '@/types/domain';
+
+import {
+  DEFAULT_BED,
+  DEFAULT_WAKE,
+  colirioName,
+  doseTimes,
+  dosesPerDay,
+  routineFor,
+  usesRoutine,
+  type Routine,
+} from '../../lib/doseSchedule.ts';
+
+const DEFAULT_ROUTINE: Routine = { wake: DEFAULT_WAKE, bed: DEFAULT_BED };
 
 /**
  * Idade em anos a partir de 'YYYY-MM-DD' (birth_date). Parse manual dos
@@ -48,32 +63,101 @@ export function regimeLabel(type: TreatmentType): string {
       return 'Atropina';
     case 'ortho_k':
       return 'Ortho-k';
+    case 'colirio':
+      return 'Colírio';
+    case 'lente_contato':
+      return 'Lente de contato';
     case 'oculos_lentes':
     default:
       return 'Óculos / lentes';
   }
 }
 
+/** Rótulo do tratamento: o colírio leva o nome ("Colírio Lubrificante"). */
+export function treatmentLabel(treatment: Pick<Treatment, 'type' | 'name'>): string {
+  if (treatment.type === 'colirio') {
+    const name = colirioName(treatment.name);
+    return name === 'Colírio' ? name : `Colírio ${name}`;
+  }
+  return regimeLabel(treatment.type);
+}
+
 /**
  * Resumo curto do regime ativo para a lista de filhos (ex.: "Atropina ·
- * 20h30"), com o horário do lembrete deste responsável (o mesmo do scheduler).
+ * 20h30"; "Colírio Lubrificante · 4x por dia · 7h, 11h40, 16h20, 21h"), com o
+ * horário do lembrete deste responsável (o mesmo do scheduler).
  */
-export function regimeSummary(treatment: Treatment | undefined, prefs: ReminderPref[] = []): string {
+export function regimeSummary(
+  treatment: Treatment | undefined,
+  prefs: ReminderPref[] = [],
+  routine: Routine = DEFAULT_ROUTINE
+): string {
   if (!treatment) return 'Sem tratamento ativo no momento';
-  const time = reminderTimeLabel(treatment, prefs);
-  return time ? `${regimeLabel(treatment.type)} · ${time}` : regimeLabel(treatment.type);
+  const label = treatmentLabel(treatment);
+  const n = dosesPerDay(treatment);
+  const parts = [label];
+  if (n > 1) parts.push(`${n}x por dia`);
+  const time = reminderTimeLabel(treatment, prefs, routine);
+  if (time) parts.push(time);
+  return parts.join(' · ');
 }
 
 /**
  * Horário exibido de um tratamento: o do lembrete que toca neste aparelho
  * (preferência do responsável > sugestão da médica > padrão do tipo). Óculos/lentes
- * não têm lembrete: mostra só a sugestão, se houver.
+ * não têm lembrete: mostra só a sugestão, se houver. Colírio de várias doses e
+ * lente de contato: os horários que saem da rotina da criança.
  */
-export function reminderTimeLabel(treatment: Treatment, prefs: ReminderPref[]): string | null {
-  if (treatment.type !== 'atropina' && treatment.type !== 'ortho_k') {
+export function reminderTimeLabel(
+  treatment: Treatment,
+  prefs: ReminderPref[],
+  routine: Routine = DEFAULT_ROUTINE
+): string | null {
+  if (treatment.type === 'lente_contato' && dosesPerDay(treatment) === 1) {
+    return `colocar ${formatTimePtBR(routine.wake)} · tirar ${formatTimePtBR(routine.bed)}`;
+  }
+  if (usesRoutine(treatment)) {
+    return doseTimes(routine.wake, routine.bed, dosesPerDay(treatment))
+      .map((t) => formatTimePtBR(t))
+      .join(', ');
+  }
+  if (treatment.type === 'oculos_lentes') {
     return formatTimePtBR(treatment.suggested_time);
   }
   return formatReminderTime(effectiveTime(treatment, prefs, fallbackTimeFor(treatment.type)));
+}
+
+/** Uma dose devida no dia: número, total e horário (null = sem horário). */
+export interface DoseSlot {
+  dose: number;
+  total: number;
+  time: ReminderTime | null;
+}
+
+/**
+ * Doses do dia de um tratamento, com o horário de cada uma. Tratamento de 1 vez
+ * por dia usa o horário do lembrete; colírio de várias doses usa a rotina; a lente
+ * de contato registra 1 vez por dia, na hora de tirar (antes de dormir), a menos
+ * que a clínica peça mais vezes.
+ */
+export function scheduledDoses(
+  treatment: Treatment,
+  prefs: ReminderPref[],
+  routine: Routine = DEFAULT_ROUTINE
+): DoseSlot[] {
+  const total = dosesPerDay(treatment);
+  if (usesRoutine(treatment)) {
+    return doseTimes(routine.wake, routine.bed, total).map((t, i) => ({
+      dose: i + 1,
+      total,
+      time: parseHM(t),
+    }));
+  }
+  const time =
+    treatment.type === 'oculos_lentes'
+      ? parseHM(treatment.suggested_time)
+      : effectiveTime(treatment, prefs, fallbackTimeFor(treatment.type));
+  return [{ dose: 1, total: 1, time }];
 }
 
 /** 'HH:MM:SS' (ou 'HH:MM') -> '20h30' / '21h'. null se vazio/inválido. */
@@ -130,6 +214,8 @@ export function fallbackTimeFor(type: TreatmentType): ReminderTime {
     case 'atropina':
       return { hour: 20, minute: 30 };
     case 'ortho_k':
+    case 'colirio':
+    case 'lente_contato':
       return { hour: 21, minute: 0 };
     case 'oculos_lentes':
     default:
@@ -141,7 +227,8 @@ export function fallbackTimeFor(type: TreatmentType): ReminderTime {
  * Monta o ChildScheduleInput[] que syncSchedulesForFamily() espera, a partir do
  * estado atual (filhos, tratamentos ativos, preferências de horário e o
  * conjunto de filhos pausados). Cada filho contribui no máximo com 1 atropina e
- * 1 ortho-k (colocar à noite + retirar de manhã fixa).
+ * 1 ortho-k (colocar à noite + retirar de manhã fixa), um lembrete por dose de
+ * cada colírio e colocar/tirar da lente de contato (horários da rotina).
  *
  * `pausedChildIds`: ids dos filhos em pausa de férias — vira remindersPaused
  * true (o scheduler cancela todos os lembretes daquele filho).
@@ -150,12 +237,50 @@ export function buildFamilySchedule(
   children: Child[],
   treatments: Treatment[],
   prefs: ReminderPref[],
-  pausedChildIds: ReadonlySet<string>
+  pausedChildIds: ReadonlySet<string>,
+  routines: ChildRoutine[] = []
 ): ChildScheduleInput[] {
   return children.map((child) => {
     const childTreatments = treatments.filter((t) => t.child_id === child.id);
     const atropinaTreatment = childTreatments.find((t) => t.type === 'atropina');
     const orthokTreatment = childTreatments.find((t) => t.type === 'ortho_k');
+    const routine = routineFor(routines, child.id);
+    const doses: DoseReminderInput[] = [];
+
+    for (const colirio of childTreatments.filter((t) => t.type === 'colirio')) {
+      for (const slot of scheduledDoses(colirio, prefs, routine)) {
+        if (!slot.time) continue;
+        doses.push({
+          treatmentId: colirio.id,
+          type: 'colirio',
+          dose: slot.dose,
+          total: slot.total,
+          label: colirioName(colirio.name),
+          time: slot.time,
+          schedule: scheduleOf(colirio),
+          withCheckinActions: true,
+        });
+      }
+    }
+
+    const lente = childTreatments.find((t) => t.type === 'lente_contato');
+    if (lente) {
+      const total = dosesPerDay(lente);
+      const wake = parseHM(routine.wake) ?? { hour: 7, minute: 0 };
+      const bed = parseHM(routine.bed) ?? { hour: 21, minute: 0 };
+      const base = { treatmentId: lente.id, total, label: 'Lente de contato', schedule: scheduleOf(lente) };
+      if (total === 1) {
+        // Colocar só lembra; o registro do dia é na hora de tirar.
+        doses.push({ ...base, type: 'lente_on', dose: 1, time: wake, withCheckinActions: false });
+        doses.push({ ...base, type: 'lente_off', dose: 1, time: bed, withCheckinActions: true });
+      } else {
+        scheduledDoses(lente, prefs, routine).forEach((slot) => {
+          if (!slot.time) return;
+          const type = slot.dose === 1 ? 'lente_on' : slot.dose === total ? 'lente_off' : 'lente_dose';
+          doses.push({ ...base, type, dose: slot.dose, time: slot.time, withCheckinActions: true });
+        });
+      }
+    }
 
     const input: ChildScheduleInput = {
       childId: child.id,
@@ -178,6 +303,7 @@ export function buildFamilySchedule(
         schedule: scheduleOf(orthokTreatment),
       };
     }
+    if (doses.length > 0) input.doses = doses;
     return input;
   });
 }

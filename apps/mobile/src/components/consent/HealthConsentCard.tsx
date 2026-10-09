@@ -31,7 +31,7 @@ export function HealthConsentCard({ childFirstName, checked, onToggle }: HealthC
         onPress={onToggle}
         accessibilityRole="checkbox"
         accessibilityState={{ checked }}
-        accessibilityLabel={`Autorizo, como responsável legal, o tratamento dos dados de saúde de ${childFirstName} para o acompanhamento do controle da miopia`}
+        accessibilityLabel={`Autorizo, como responsável legal, o tratamento dos dados de saúde de ${childFirstName} para o acompanhamento do cuidado com os olhos`}
         style={({ pressed }) => [styles.inner, pressed ? styles.pressed : null]}
       >
         <ConsentCheckbox checked={checked} tone="green" />
@@ -40,7 +40,7 @@ export function HealthConsentCard({ childFirstName, checked, onToggle }: HealthC
             <AppText variant="body" color={colors.purple900} style={styles.strong}>
               Autorizo, como responsável legal, o tratamento dos dados de saúde de {childFirstName}
             </AppText>{' '}
-            para o acompanhamento do controle da miopia, conforme descrito acima.
+            para o acompanhamento do cuidado com os olhos, conforme descrito acima.
           </AppText>
           <AppText variant="meta" color={colors.ink2} style={styles.who}>
             Esta autorização é separada dos termos gerais e pode ser revogada a qualquer momento em

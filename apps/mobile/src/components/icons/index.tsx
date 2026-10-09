@@ -232,6 +232,25 @@ export function DocumentIcon({ size = 22, color = colors.purple }: IconProps) {
   );
 }
 
+/** Tela com "play" (vídeo) — ícone da tab Mural. */
+export function PlayIcon({ size = 22, color = colors.purple }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
+      <Rect
+        x={3}
+        y={5}
+        width={18}
+        height={14}
+        rx={3.5}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+      />
+      <Path d="M10 9.2 L15.2 12 L10 14.8 Z" fill={color} stroke={color} strokeWidth={1.4} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 /** Duas pessoas — ícone da tab Família. */
 export function PeopleIcon({ size = 22, color = colors.purple }: IconProps) {
   return (

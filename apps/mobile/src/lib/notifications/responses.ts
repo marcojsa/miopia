@@ -24,16 +24,19 @@ interface NotificationData {
   childId: string;
   type: string;
   treatmentId: string;
+  /** Dose do dia; lembretes agendados antes das doses não trazem e valem como 1. */
+  dose: number;
 }
 
 function parseData(resp: Notifications.NotificationResponse): NotificationData | null {
   const data = resp.notification.request.content.data as Record<string, unknown> | undefined;
   if (!data) return null;
-  const { childId, type, treatmentId } = data;
+  const { childId, type, treatmentId, dose } = data;
   if (typeof childId !== 'string' || typeof type !== 'string' || typeof treatmentId !== 'string') {
     return null;
   }
-  return { childId, type, treatmentId };
+  const doseNumber = typeof dose === 'number' && Number.isInteger(dose) && dose >= 1 ? dose : 1;
+  return { childId, type, treatmentId, dose: doseNumber };
 }
 
 /** Tira a notificação da bandeja e, se for de um lembrete que não vale mais, desagenda. */
@@ -79,9 +82,18 @@ export async function handleNotificationResponse(
   }
 
   if (action === ACTION_DONE || action === ACTION_SKIP) {
-    // A retirada da lente (manhã) não registra noite: a noite é marcada ao colocar.
-    if (data.type === 'orthok_off') {
+    // A retirada do ortho-k (manhã) não registra noite: a noite é marcada ao colocar.
+    // O "colocar" da lente de contato de 1 vez por dia também não: registra-se ao tirar.
+    if (
+      data.type === 'orthok_off' ||
+      (data.type === 'lente_on' && (treatment?.times_per_day ?? 1) <= 1)
+    ) {
       dismiss(resp, false);
+      return;
+    }
+    // Dose que o tratamento não tem mais (a clínica reduziu as vezes por dia).
+    if (treatment && data.dose > treatment.times_per_day) {
+      dismiss(resp, true);
       return;
     }
     const logDate = localDateString(); // data lógica (corte 04h)
@@ -96,6 +108,7 @@ export async function handleNotificationResponse(
       treatment_id: data.treatmentId,
       child_id: data.childId,
       log_date: logDate,
+      dose: data.dose,
       status,
       logged_by: userId,
     });
@@ -104,6 +117,7 @@ export async function handleNotificationResponse(
       treatment_id: data.treatmentId,
       child_id: data.childId,
       log_date: logDate,
+      dose: data.dose,
       status,
       note: null,
       logged_by: userId,
@@ -114,7 +128,14 @@ export async function handleNotificationResponse(
   } else {
     // Tap no corpo -> sheet de check-in no app (fallback de 1 toque a mais). A
     // navegação fica com o grupo (app), depois dos gates e com o navegador montado.
-    useUiStore.setState({ pendingCheckin: { childId: data.childId, type: data.type } });
+    useUiStore.setState({
+      pendingCheckin: {
+        childId: data.childId,
+        type: data.type,
+        treatmentId: data.treatmentId,
+        dose: data.dose,
+      },
+    });
   }
 }
 
@@ -145,7 +166,7 @@ export async function processNotificationResponseOnce(
     await AsyncStorage.setItem(PROCESSED_KEY, JSON.stringify(next));
   } catch {
     // Se a deduplicação falhar, ainda processa: o upsert idempotente
-    // (treatment_id, log_date) garante que nada duplica no banco.
+    // (treatment_id, log_date, dose) garante que nada duplica no banco.
   }
   await handleNotificationResponse(resp);
 }

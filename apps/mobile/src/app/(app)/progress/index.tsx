@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ChildSelectorCard, regimeLabel } from '@/components/progresso';
+import { treatmentLabel } from '@/components/familia';
+import { ChildSelectorCard } from '@/components/progresso';
 import { AppText, EmptyState, Screen } from '@/components/ui';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
 import { queryKeys, useChildren, useTreatments } from '@/hooks';
@@ -117,7 +118,7 @@ export default function ProgressIndexScreen() {
         {children.map((child) => {
           const labels = treatments
             .filter((t) => t.child_id === child.id)
-            .map((t) => regimeLabel(t.type));
+            .map((t) => treatmentLabel(t));
           return (
             <View key={child.id} style={styles.cardWrap}>
               <ChildSelectorCard

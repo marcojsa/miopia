@@ -9,6 +9,9 @@ import { queryKeys } from './keys';
 
 const MINUTE = 60 * 1000;
 
+const TREATMENT_COLUMNS =
+  'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active';
+
 /**
  * Tratamentos ativos — de um filho (childId) ou da família inteira (sem arg).
  * É a fonte para o scheduler de lembretes e para os cards de tarefa da Hoje.
@@ -20,7 +23,7 @@ export function useTreatments(childId?: string): UseQueryResult<Treatment[]> {
     queryFn: async (): Promise<Treatment[]> => {
       let query = supabase
         .from('treatments')
-        .select('id, child_id, type, instructions, suggested_time, days_of_week, starts_on, ends_on, active')
+        .select(TREATMENT_COLUMNS)
         .eq('active', true)
         .order('starts_on', { ascending: true });
       if (childId) query = query.eq('child_id', childId);
@@ -51,7 +54,7 @@ export function useTreatmentHistory(childId: string): UseQueryResult<Treatment[]
     queryFn: async (): Promise<Treatment[]> => {
       const { data, error } = await supabase
         .from('treatments')
-        .select('id, child_id, type, instructions, suggested_time, days_of_week, starts_on, ends_on, active')
+        .select(TREATMENT_COLUMNS)
         .eq('child_id', childId)
         .order('starts_on', { ascending: true });
       if (error) throw error;

@@ -70,12 +70,12 @@ const LAYERS: readonly { key: string; title: string; body: string }[] = [
   {
     key: 'what',
     title: 'O que registramos',
-    body: 'As medidas das consultas (grau e comprimento do olho), o tratamento orientado pela médica e os registros de que vocês fizeram o cuidado da noite. Não pedimos nem guardamos fotos da criança.',
+    body: 'As medidas das consultas (grau e comprimento do olho), o tratamento orientado pela médica e os registros de que vocês fizeram os cuidados do dia. Não pedimos nem guardamos fotos da criança.',
   },
   {
     key: 'why',
     title: 'Para que usamos',
-    body: 'Para acompanhar o controle da miopia ao longo do tempo e ajudar vocês a manterem a rotina de cuidado. Os dados servem ao tratamento da criança na clínica — nada de publicidade ou venda de dados.',
+    body: 'Para o acompanhamento do cuidado com os olhos da criança ao longo do tempo e ajudar vocês a manterem a rotina de cuidado. Os dados servem ao tratamento da criança na clínica — nada de publicidade ou venda de dados.',
   },
   {
     key: 'who',

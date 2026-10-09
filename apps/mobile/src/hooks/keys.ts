@@ -13,7 +13,13 @@ export const queryKeys = {
   /** Prefixo do histórico da criança; a query completa acrescenta a data inicial. */
   adherenceByChild: (childId: string) => ['adherence', childId] as const,
   measurements: (childId: string) => ['measurements', childId] as const,
+  /** A família tem alguma medição lançada? (mostra ou esconde a aba Progresso) */
+  anyMeasurement: (userId: string | null) => ['measurements', 'any', userId ?? 'anon'] as const,
   reminderPrefs: ['reminder-prefs'] as const,
+  /** Conteúdos publicados do mural da clínica (por usuário: o cache é persistido). */
+  contents: (userId: string | null) => ['contents', userId ?? 'anon'] as const,
+  /** Rotina (acorda/dorme) de cada filho, do responsável logado. */
+  childRoutines: ['child-routines'] as const,
   /** Estado local de pausa (AsyncStorage, não servidor). */
   paused: (childId: string) => ['reminders', 'paused', childId] as const,
   /** Pendência de consentimento LGPD (gate de entrada). Reavalia se mudam as crianças. */

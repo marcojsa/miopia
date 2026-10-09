@@ -19,6 +19,8 @@ export interface CheckinSheetProps {
   type: ReminderType;
   /** Título por tipo (ex.: "Hora da gotinha da Alice"). */
   title: string;
+  /** Linha da dose (ex.: "2ª de 4 · 11h40"), nos tratamentos de várias doses. */
+  subtitle?: string | null;
   /** Instrução curta (prescrição da médica ou texto padrão por tipo). */
   instruction: string;
   /** true enquanto o check-in está sincronizando (bloqueia os botões). */
@@ -30,7 +32,9 @@ export interface CheckinSheetProps {
 }
 
 function SheetIcon({ type }: { type: ReminderType }) {
-  if (type === 'orthok_on') return <LensIcon size={26} color={colors.purple} />;
+  if (type === 'orthok_on' || type === 'lente_on' || type === 'lente_dose' || type === 'lente_off') {
+    return <LensIcon size={26} color={colors.purple} />;
+  }
   if (type === 'orthok_off') return <SunriseIcon size={24} />;
   return <DropIcon size={26} color={colors.purple} />;
 }
@@ -38,6 +42,7 @@ function SheetIcon({ type }: { type: ReminderType }) {
 export function CheckinSheet({
   type,
   title,
+  subtitle = null,
   instruction,
   busy = false,
   onDone,
@@ -69,6 +74,11 @@ export function CheckinSheet({
           <AppText variant="cardTitle" accessibilityRole="header">
             {title}
           </AppText>
+          {subtitle ? (
+            <AppText variant="meta" color={colors.purple} style={styles.instruction}>
+              {subtitle}
+            </AppText>
+          ) : null}
           <AppText variant="meta" style={styles.instruction}>
             {instruction}
           </AppText>

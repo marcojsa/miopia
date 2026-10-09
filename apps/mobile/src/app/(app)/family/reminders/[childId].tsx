@@ -7,6 +7,11 @@
 // Ortho-k: editamos só o horário de COLOCAR à noite; a retirada é fixa de manhã
 // (07h) no MVP — mostrada como informação, não editável.
 //
+// Rotina da criança (acorda/dorme, child_routines): mesmo seletor de horário, com
+// "Salvar rotina" próprio. Dela saem os horários do colírio de várias doses e da
+// lente de contato (colocar ao acordar, tirar antes de dormir), mostrados aqui
+// como informação.
+//
 // ANVISA/LGPD: aqui só há preferência de horário de notificação. Nenhum dado
 // clínico é exibido, calculado ou julgado.
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,8 +34,9 @@ import {
   formatTimePtBR,
   ORTHOK_OFF_TIME,
   parseHM,
-  regimeLabel,
+  reminderTimeLabel,
   toReminderTimeString,
+  treatmentLabel,
 } from '@/components/familia';
 import { ChevronIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
@@ -38,10 +44,21 @@ import { AppText, Button, Card, EmptyState, Pill, Screen } from '@/components/ui
 import {
   getPausedState,
   queryKeys,
+  ROUTINE_ERROR,
+  useChildRoutine,
+  useChildRoutines,
   useChildren,
   useReminderPrefs,
   useTreatments,
 } from '@/hooks';
+import {
+  dosesPerDay,
+  fromMinutes,
+  outsideRoutine,
+  routineError,
+  usesRoutine,
+  type Routine,
+} from '@/lib/doseSchedule';
 import { requestNotificationPermission } from '@/lib/notifications/permission';
 import { syncSchedulesForFamily } from '@/lib/notifications/scheduler';
 import { supabase } from '@/lib/supabase';
@@ -52,6 +69,24 @@ import type { ReminderTime, Treatment } from '@/types/domain';
 // Horários comuns no MVP: 19h30 a 22h30, de 30 em 30 minutos.
 const COMMON_TIMES: ReminderTime[] = [
   { hour: 19, minute: 30 },
+  { hour: 20, minute: 0 },
+  { hour: 20, minute: 30 },
+  { hour: 21, minute: 0 },
+  { hour: 21, minute: 30 },
+  { hour: 22, minute: 0 },
+  { hour: 22, minute: 30 },
+];
+
+// Rotina: horários comuns de acordar e de dormir.
+const WAKE_TIMES: ReminderTime[] = [
+  { hour: 6, minute: 0 },
+  { hour: 6, minute: 30 },
+  { hour: 7, minute: 0 },
+  { hour: 7, minute: 30 },
+  { hour: 8, minute: 0 },
+  { hour: 8, minute: 30 },
+];
+const BED_TIMES: ReminderTime[] = [
   { hour: 20, minute: 0 },
   { hour: 20, minute: 30 },
   { hour: 21, minute: 0 },
@@ -93,19 +128,69 @@ export default function RemindersScreen() {
   const childrenQuery = useChildren();
   const treatmentsQuery = useTreatments(childId);
   const prefsQuery = useReminderPrefs();
+  const routinesQuery = useChildRoutines();
+  const { routine, save: saveRoutine } = useChildRoutine(childId);
 
   const child = (childrenQuery.data ?? []).find((c) => c.id === childId);
   const prefs = useMemo(() => prefsQuery.data ?? [], [prefsQuery.data]);
 
-  // Só tratamentos que GERAM lembrete (atropina/ortho-k); óculos/lentes não têm
-  // notificação no MVP, então não entram no editor de horário.
+  // Editor de horário só para os lembretes de 1 vez por dia (atropina, ortho-k,
+  // colírio 1x); óculos/lentes não têm notificação no MVP.
   const treatments = useMemo(
     () =>
       (treatmentsQuery.data ?? []).filter(
-        (t) => t.type === 'atropina' || t.type === 'ortho_k'
+        (t) =>
+          (t.type === 'atropina' || t.type === 'ortho_k' || t.type === 'colirio') &&
+          !usesRoutine(t)
       ),
     [treatmentsQuery.data]
   );
+  // Colírio de várias doses e lente de contato: horários saem da rotina.
+  const routineTreatments = useMemo(
+    () => (treatmentsQuery.data ?? []).filter((t) => usesRoutine(t)),
+    [treatmentsQuery.data]
+  );
+
+  // Rotina em edição (inicia na salva, ou 07:00–21:00).
+  const [wakeEdit, setWakeEdit] = useState<ReminderTime | null>(null);
+  const [bedEdit, setBedEdit] = useState<ReminderTime | null>(null);
+  const [routineStatus, setRoutineStatus] = useState<Status | null>(null);
+  const wake = wakeEdit ?? parseHM(routine.wake) ?? { hour: 7, minute: 0 };
+  const bed = bedEdit ?? parseHM(routine.bed) ?? { hour: 21, minute: 0 };
+  const wakeHM = fromMinutes(toTotal(wake));
+  const bedHM = fromMinutes(toTotal(bed));
+  const routineInvalid = routineError(wakeHM, bedHM);
+  const editingRoutine = { wake: wakeHM, bed: bedHM };
+
+  const handleSaveRoutine = (): void => {
+    if (routineInvalid) {
+      setRoutineStatus({ kind: 'error', text: routineInvalid });
+      return;
+    }
+    setRoutineStatus(null);
+    saveRoutine.mutate(
+      { wake: wakeHM, bed: bedHM },
+      {
+        onSuccess: () => {
+          setWakeEdit(null);
+          setBedEdit(null);
+          setRoutineStatus({
+            kind: 'info',
+            text: 'Rotina salva. Os lembretes do colírio e da lente já seguem os horários novos.',
+          });
+        },
+        onError: (e) => {
+          setRoutineStatus({
+            kind: 'error',
+            text:
+              e.name === ROUTINE_ERROR
+                ? e.message
+                : 'Não foi possível salvar a rotina agora. Verifique sua internet e tente de novo.',
+          });
+        },
+      }
+    );
+  };
 
   // Horário editado por tratamento (inicia no horário efetivo atual).
   const initialTimes = useMemo(() => {
@@ -170,7 +255,7 @@ export default function RemindersScreen() {
     );
   }
 
-  if (treatments.length === 0) {
+  if (treatments.length === 0 && routineTreatments.length === 0) {
     return (
       <Screen edges={['top', 'left', 'right']}>
         {header}
@@ -232,7 +317,13 @@ export default function RemindersScreen() {
           if (state.paused) pausedSet.add(c.id);
         })
       );
-      const schedule = buildFamilySchedule(allChildren, allTreatments, mergedPrefs, pausedSet);
+      const schedule = buildFamilySchedule(
+        allChildren,
+        allTreatments,
+        mergedPrefs,
+        pausedSet,
+        routinesQuery.data ?? []
+      );
       await syncSchedulesForFamily(schedule);
 
       // Android 13+: sem a permissão o lembrete agendado não aparece.
@@ -265,6 +356,94 @@ export default function RemindersScreen() {
         {header}
 
         <View style={styles.body}>
+          <View style={styles.cardWrap}>
+            <Card>
+              <AppText variant="cardTitle">
+                {child ? `Rotina de ${child.first_name}` : 'Rotina da criança'}
+              </AppText>
+              <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
+                Dela saem os horários do colírio de várias doses e da lente de contato, sempre
+                entre o acordar e o dormir.
+              </AppText>
+              <AppText variant="meta" color={colors.ink3} style={styles.commonLabel}>
+                Acorda às
+              </AppText>
+              <TimePicker
+                value={wake}
+                commonTimes={WAKE_TIMES}
+                onSelect={(t) => {
+                  setRoutineStatus(null);
+                  setWakeEdit(t);
+                }}
+                onStep={(delta) => {
+                  setRoutineStatus(null);
+                  setWakeEdit(fromTotal(toTotal(wake) + delta));
+                }}
+              />
+              <AppText variant="meta" color={colors.ink3} style={styles.commonLabel}>
+                Dorme às
+              </AppText>
+              <TimePicker
+                value={bed}
+                commonTimes={BED_TIMES}
+                onSelect={(t) => {
+                  setRoutineStatus(null);
+                  setBedEdit(t);
+                }}
+                onStep={(delta) => {
+                  setRoutineStatus(null);
+                  setBedEdit(fromTotal(toTotal(bed) + delta));
+                }}
+              />
+              {routineInvalid || routineStatus ? (
+                <View
+                  style={[
+                    styles.banner,
+                    styles.routineBanner,
+                    !routineInvalid && routineStatus?.kind === 'info'
+                      ? styles.bannerInfo
+                      : styles.bannerError,
+                  ]}
+                  accessibilityLiveRegion="polite"
+                >
+                  <AppText
+                    variant="meta"
+                    color={
+                      !routineInvalid && routineStatus?.kind === 'info' ? colors.purple800 : colors.ink
+                    }
+                  >
+                    {routineInvalid ?? routineStatus?.text}
+                  </AppText>
+                </View>
+              ) : null}
+              <Button
+                label={saveRoutine.isPending ? 'Salvando...' : 'Salvar rotina'}
+                onPress={handleSaveRoutine}
+                loading={saveRoutine.isPending}
+                disabled={routineInvalid !== null}
+                style={styles.save}
+              />
+            </Card>
+          </View>
+
+          {routineTreatments.map((t) => (
+            <View key={t.id} style={styles.cardWrap}>
+              <Card>
+                <AppText variant="cardTitle">{treatmentLabel(t)}</AppText>
+                <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
+                  {t.type === 'lente_contato' && dosesPerDay(t) === 1
+                    ? 'Colocar ao acordar e tirar antes de dormir, pela rotina.'
+                    : `${dosesPerDay(t)} vezes por dia, espalhadas entre o acordar e o dormir.`}
+                </AppText>
+                <View style={styles.orthokOff}>
+                  <AppText variant="meta" color={colors.ink2}>
+                    Lembretes: {reminderTimeLabel(t, prefs, editingRoutine)}
+                  </AppText>
+                </View>
+              </Card>
+            </View>
+          ))}
+
           {status ? (
             <View
               style={[
@@ -287,20 +466,23 @@ export default function RemindersScreen() {
               <TreatmentTimeEditor
                 treatment={treatment}
                 value={timeFor(treatment.id)}
+                routine={routineInvalid ? routine : editingRoutine}
                 onSelect={(t) => setTimeFor(treatment.id, t)}
                 onStep={(delta) => adjustBy(treatment.id, delta)}
               />
             </View>
           ))}
 
-          <Button
-            label={saving ? 'Salvando...' : 'Salvar horários'}
-            onPress={() => {
-              void handleSave();
-            }}
-            loading={saving}
-            style={styles.save}
-          />
+          {treatments.length > 0 ? (
+            <Button
+              label={saving ? 'Salvando...' : 'Salvar horários'}
+              onPress={() => {
+                void handleSave();
+              }}
+              loading={saving}
+              style={styles.save}
+            />
+          ) : null}
           <AppText variant="small" style={styles.footNote}>
             Os lembretes deste app são deste aparelho. Em alguns Androids a economia de bateria pode
             atrasá-los — veja "Ajuda com notificações".
@@ -314,21 +496,62 @@ export default function RemindersScreen() {
 interface TreatmentTimeEditorProps {
   treatment: Treatment;
   value: ReminderTime;
+  /** Rotina da criança, para avisar quando o lembrete cai no sono. */
+  routine: Routine;
   onSelect: (t: ReminderTime) => void;
   onStep: (deltaMinutes: number) => void;
 }
 
-function TreatmentTimeEditor({ treatment, value, onSelect, onStep }: TreatmentTimeEditorProps) {
+function TreatmentTimeEditor({ treatment, value, routine, onSelect, onStep }: TreatmentTimeEditorProps) {
   const suggested = formatTimePtBR(treatment.suggested_time);
   const isOrthok = treatment.type === 'ortho_k';
+  const outside = outsideRoutine(fromMinutes(toTotal(value)), routine);
   return (
     <Card>
-      <AppText variant="cardTitle">{regimeLabel(treatment.type)}</AppText>
+      <AppText variant="cardTitle">{treatmentLabel(treatment)}</AppText>
       <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
-        {isOrthok ? 'Lembrete de COLOCAR a lente à noite.' : 'Lembrete da noite.'}
+        {isOrthok
+          ? 'Lembrete de COLOCAR a lente à noite.'
+          : treatment.type === 'colirio'
+            ? 'Lembrete do colírio.'
+            : 'Lembrete da noite.'}
         {suggested ? ` Sugerido pela médica: ${suggested}.` : ''}
       </AppText>
 
+      <TimePicker value={value} commonTimes={COMMON_TIMES} onSelect={onSelect} onStep={onStep} />
+
+      {outside ? (
+        <View style={[styles.banner, styles.routineBanner, styles.bannerError]} accessibilityLiveRegion="polite">
+          <AppText variant="meta" color={colors.ink}>
+            {outside === 'depois'
+              ? `Este lembrete toca às ${formatReminderTime(value)}, depois da hora de dormir (${formatTimePtBR(routine.bed)}). Ajuste o horário se precisar.`
+              : `Este lembrete toca às ${formatReminderTime(value)}, antes da hora de acordar (${formatTimePtBR(routine.wake)}). Ajuste o horário se precisar.`}
+          </AppText>
+        </View>
+      ) : null}
+
+      {isOrthok ? (
+        <View style={styles.orthokOff}>
+          <AppText variant="meta" color={colors.ink2}>
+            Retirar a lente: lembrete fixo às {formatReminderTime(ORTHOK_OFF_TIME)} da manhã.
+          </AppText>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+interface TimePickerProps {
+  value: ReminderTime;
+  commonTimes: ReminderTime[];
+  onSelect: (t: ReminderTime) => void;
+  onStep: (deltaMinutes: number) => void;
+}
+
+/** Seletor de horário: steppers de 5 min + pills de horários comuns. */
+function TimePicker({ value, commonTimes, onSelect, onStep }: TimePickerProps) {
+  return (
+    <>
       <View style={styles.timeDisplayRow}>
         <Pressable
           onPress={() => onStep(-STEP_MINUTES)}
@@ -363,7 +586,7 @@ function TreatmentTimeEditor({ treatment, value, onSelect, onStep }: TreatmentTi
         Horários comuns
       </AppText>
       <View style={styles.pillsRow}>
-        {COMMON_TIMES.map((t) => {
+        {commonTimes.map((t) => {
           const selected = sameTime(t, value);
           return (
             <Pressable
@@ -382,15 +605,7 @@ function TreatmentTimeEditor({ treatment, value, onSelect, onStep }: TreatmentTi
           );
         })}
       </View>
-
-      {isOrthok ? (
-        <View style={styles.orthokOff}>
-          <AppText variant="meta" color={colors.ink2}>
-            Retirar a lente: lembrete fixo às {formatReminderTime(ORTHOK_OFF_TIME)} da manhã.
-          </AppText>
-        </View>
-      ) : null}
-    </Card>
+    </>
   );
 }
 
@@ -430,6 +645,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: spacing.md,
+  },
+  routineBanner: {
+    marginTop: spacing.md,
+    marginBottom: 0,
   },
   bannerInfo: {
     backgroundColor: colors.purple50,

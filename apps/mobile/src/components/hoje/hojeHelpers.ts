@@ -3,7 +3,8 @@
 // rotina (ANVISA RDC 657/2022). Testável isoladamente (sem imports de RN).
 import type { Treatment, TreatmentType } from '@/types/domain';
 
-import { weekdayOfYMD } from '../../lib/date.ts';
+import { NIGHT_CUTOFF_HOUR, weekdayOfYMD } from '../../lib/date.ts';
+import { colirioName, dosesPerDay, sameColirio } from '../../lib/doseSchedule.ts';
 
 const WEEKDAYS_LONG = [
   'domingo',
@@ -56,13 +57,26 @@ export function formatTimePtBR(time: string | null): string | null {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
 }
 
-/** Título do card de tarefa por tipo de tratamento + nome do filho. */
-export function taskTitle(type: TreatmentType, firstName: string): string {
+/**
+ * Título do card de tarefa por tipo de tratamento + nome do filho. Colírio leva o
+ * nome cadastrado pela clínica ("Lubrificante de Alice"); a lente de contato de 1
+ * vez por dia é registrada na hora de tirar ("Tirou a lente de Pedro?").
+ */
+export function taskTitle(
+  type: TreatmentType,
+  firstName: string,
+  name: string | null = null,
+  timesPerDay = 1
+): string {
   switch (type) {
     case 'atropina':
       return `Hora do colírio de ${firstName}`;
     case 'ortho_k':
       return `Hora da lente de ${firstName}`;
+    case 'colirio':
+      return `${colirioName(name)} de ${firstName}`;
+    case 'lente_contato':
+      return timesPerDay > 1 ? `Lente de contato de ${firstName}` : `Tirou a lente de ${firstName}?`;
     case 'oculos_lentes':
     default:
       return `Cuidado de ${firstName}`;
@@ -82,10 +96,34 @@ export function taskInstruction(treatment: Treatment): string {
       return 'Atropina, 1 gota em cada olho antes de dormir';
     case 'ortho_k':
       return 'Colocar a lente de ortho-k antes de dormir';
+    case 'colirio':
+      return 'Pingar conforme a orientação da médica';
+    case 'lente_contato':
+      return 'Colocar ao acordar e tirar antes de dormir';
     case 'oculos_lentes':
     default:
       return 'Cuidado da noite antes de dormir';
   }
+}
+
+/**
+ * Chave de ordenação do horário de uma dose no dia lógico: o que cai de
+ * madrugada (antes das 04h) vai para o fim. Sem horário, por último.
+ */
+export function doseSortKey(time: { hour: number; minute: number } | null): number {
+  if (!time) return Number.MAX_SAFE_INTEGER;
+  const minutes = time.hour * 60 + time.minute;
+  return time.hour < NIGHT_CUTOFF_HOUR ? minutes + 24 * 60 : minutes;
+}
+
+/** Mesmo tratamento para a troca de regime: mesmo tipo e, no colírio, mesmo nome. */
+function sameRegime(a: Treatment, b: Treatment): boolean {
+  return a.type === b.type && (a.type !== 'colirio' || sameColirio(a.name, b.name));
+}
+
+/** Grupo de troca de regime: um por tipo e, no colírio, um por nome. */
+function regimeKey(t: Treatment): string {
+  return t.type === 'colirio' ? `colirio:${(t.name ?? '').trim().toLowerCase()}` : t.type;
 }
 
 /**
@@ -122,13 +160,21 @@ export function wasScheduledOn(treatment: Treatment, ymd: string): boolean {
 }
 
 /**
- * Cuidados devidos na noite `ymd`, um por tipo: na noite da troca de regime o
- * encerrado e o novo do mesmo tipo não contam em dobro.
+ * Doses devidas no dia `ymd`: soma das vezes por dia de cada tratamento devido,
+ * um por tipo (no colírio, um por nome). Na noite da troca de regime o encerrado
+ * e o novo do mesmo grupo não contam em dobro — vale o de início mais recente.
  */
 export function dueCareCount(treatments: Treatment[], ymd: string): number {
-  const types = new Set<TreatmentType>();
-  for (const t of treatments) if (wasScheduledOn(t, ymd)) types.add(t.type);
-  return types.size;
+  const byRegime = new Map<string, Treatment>();
+  for (const t of treatments) {
+    if (!wasScheduledOn(t, ymd)) continue;
+    const key = regimeKey(t);
+    const prev = byRegime.get(key);
+    if (!prev || t.starts_on > prev.starts_on) byRegime.set(key, t);
+  }
+  let total = 0;
+  for (const t of byRegime.values()) total += dosesPerDay(t);
+  return total;
 }
 
 /**
@@ -153,7 +199,7 @@ export function isScheduledTonight(
       prev.id !== treatment.id &&
       !prev.active &&
       prev.child_id === treatment.child_id &&
-      prev.type === treatment.type &&
+      sameRegime(prev, treatment) &&
       prev.ends_on !== null &&
       prev.ends_on >= calendarYMD
   );

@@ -12,7 +12,7 @@ import type { Child } from '@/types/domain';
 
 export interface ChildChip {
   child: Child;
-  /** Subtexto do chip (ex.: "colírio 20h30"), já formatado pela tela. */
+  /** Subtexto curto do chip (ex.: "atropina 20h30" ou "3 cuidados hoje"), já formatado pela tela. */
   subtitle: string | null;
 }
 
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
   },
   chipText: {
-    maxWidth: 150,
+    maxWidth: 210,
   },
   chipName: {
     fontFamily: fonts.nunitoExtraBold,

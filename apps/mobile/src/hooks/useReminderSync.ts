@@ -8,13 +8,16 @@ import { AppState } from 'react-native';
 import { buildFamilySchedule } from '@/components/familia/familiaHelpers';
 import { getNotificationPermission } from '@/lib/notifications/permission';
 import { syncSchedulesForFamily } from '@/lib/notifications/scheduler';
-import type { Child, ReminderPref, Treatment } from '@/types/domain';
+import type { Child, ChildRoutine, ReminderPref, Treatment } from '@/types/domain';
+import { useChildRoutines } from './useChildRoutine';
 import { useChildren } from './useChildren';
 import { getPausedState } from './usePausedDates';
 import { useReminderPrefs } from './useReminderPrefs';
 import { useTreatments } from './useTreatments';
 
 let chain: Promise<void> = Promise.resolve();
+
+const NO_ROUTINES: ChildRoutine[] = [];
 
 /**
  * Agenda os lembretes de TODOS os filhos (respeitando a pausa de cada um).
@@ -24,7 +27,8 @@ let chain: Promise<void> = Promise.resolve();
 export function syncFamilyReminders(
   children: Child[],
   treatments: Treatment[],
-  prefs: ReminderPref[]
+  prefs: ReminderPref[],
+  routines: ChildRoutine[] = []
 ): Promise<void> {
   chain = chain
     .then(async () => {
@@ -36,7 +40,9 @@ export function syncFamilyReminders(
           if ((await getPausedState(c.id)).paused) paused.add(c.id);
         })
       );
-      await syncSchedulesForFamily(buildFamilySchedule(children, treatments, prefs, paused));
+      await syncSchedulesForFamily(
+        buildFamilySchedule(children, treatments, prefs, paused, routines)
+      );
     })
     .catch(() => {
       // Falha local (storage/SO): a próxima mudança ou volta ao app tenta de novo.
@@ -48,13 +54,16 @@ export function useReminderSync(): void {
   const children = useChildren().data;
   const treatments = useTreatments().data;
   const prefs = useReminderPrefs().data;
+  const routinesQuery = useChildRoutines();
+  // Rotina que não carregou (offline sem cache) não segura os lembretes: vale o padrão.
+  const routines = routinesQuery.data ?? (routinesQuery.isError ? NO_ROUTINES : undefined);
 
   useEffect(() => {
-    if (!children || !treatments || !prefs) return;
-    void syncFamilyReminders(children, treatments, prefs);
+    if (!children || !treatments || !prefs || !routines) return;
+    void syncFamilyReminders(children, treatments, prefs, routines);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void syncFamilyReminders(children, treatments, prefs);
+      if (state === 'active') void syncFamilyReminders(children, treatments, prefs, routines);
     });
     return () => sub.remove();
-  }, [children, treatments, prefs]);
+  }, [children, treatments, prefs, routines]);
 }

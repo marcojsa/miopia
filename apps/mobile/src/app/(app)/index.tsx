@@ -12,13 +12,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { reminderTimeLabel } from '@/components/familia/familiaHelpers';
+import {
+  formatReminderTime,
+  reminderTimeLabel,
+  scheduledDoses,
+  type DoseSlot,
+} from '@/components/familia/familiaHelpers';
 import {
   GreetingHeader,
   NightDoneCard,
   SkyTeaserCard,
   TaskCard,
   WeekGoalCard,
+  doseSortKey,
   dueCareCount,
   greetingForHour,
   isScheduledTonight,
@@ -28,12 +34,13 @@ import {
   type ChildChip,
 } from '@/components/hoje';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
-import { AppText, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
+import { AppText, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import {
   ALL_HISTORY,
   markTodayPausedIfNeeded,
   queryKeys,
   useAdherenceLogs,
+  useChildRoutines,
   useChildren,
   useCheckinMutation,
   useNotificationPermission,
@@ -47,6 +54,14 @@ import {
 import { requestNotificationPermission } from '@/lib/notifications/permission';
 import { flushOutbox } from '@/lib/outbox';
 import { formatLocalYMD, localDateString, parseLocalYMD } from '@/lib/date';
+import {
+  colirioName,
+  doseLabel,
+  dosesPerDay,
+  routineFor,
+  usesRoutine,
+  type Routine,
+} from '@/lib/doseSchedule';
 import {
   computeShields,
   computeStreakAndMilestones,
@@ -66,22 +81,44 @@ function displayNameOf(metadata: Record<string, unknown> | undefined): string {
   return 'família';
 }
 
-// Subtítulo do chip do filho: tipo de cada tratamento + horário do lembrete deste
-// aparelho (ex.: "lente 21h15 · colírio 20h30") — o mesmo horário em que a notificação toca.
+// Subtítulo do chip do filho, curto para caber no chip: com 1 ou 2 tratamentos,
+// o nome de cada um + o horário do lembrete deste aparelho ou quantas vezes ao
+// dia (ex.: "atropina 20h30 · Lubrificante 4x"); com mais, só a contagem.
 function chipSubtitle(
   treatments: Treatment[],
   prefs: ReminderPref[],
-  paused: boolean
+  paused: boolean,
+  routine: Routine
 ): string | null {
   if (treatments.length === 0) return null;
   if (paused) return 'em pausa';
+  if (treatments.length > 2) return `${treatments.length} cuidados hoje`;
   return treatments
     .map((t) => {
-      const time = reminderTimeLabel(t, prefs);
-      const word = t.type === 'ortho_k' ? 'lente' : t.type === 'atropina' ? 'colírio' : 'cuidado';
-      return time ? `${word} ${time}` : word;
+      if (t.type === 'lente_contato') return 'lente de contato';
+      const name =
+        t.type === 'atropina'
+          ? 'atropina'
+          : t.type === 'ortho_k'
+            ? 'ortho-k'
+            : t.type === 'colirio'
+              ? colirioName(t.name)
+              : 'óculos';
+      if (usesRoutine(t)) return `${name} ${dosesPerDay(t)}x`;
+      const time = reminderTimeLabel(t, prefs, routine);
+      return time ? `${name} ${time}` : name;
     })
     .join(' · ');
+}
+
+/** Uma dose devida hoje (um card na Hoje). */
+interface DoseTask extends DoseSlot {
+  key: string;
+  treatment: Treatment;
+}
+
+function doseKey(treatmentId: string, dose: number): string {
+  return `${treatmentId}:${dose}`;
 }
 
 export default function TodayScreen() {
@@ -118,6 +155,7 @@ export default function TodayScreen() {
   const allTreatmentsQuery = useTreatments(); // todos da família (para os subtítulos dos chips)
   const todayQuery = useTodayAdherence(today);
   const prefsQuery = useReminderPrefs();
+  const routinesQuery = useChildRoutines();
   const notifications = useNotificationPermission();
 
   const childTreatmentsQuery = useTreatments(activeChildId ?? undefined);
@@ -126,10 +164,11 @@ export default function TodayScreen() {
   const pausedQuery = usePausedDates(activeChildId ?? '');
 
   const checkin = useCheckinMutation();
-  // Tratamento cujo check-in está sincronizando (bloqueia só aquele card).
-  const [busyTreatmentId, setBusyTreatmentId] = useState<string | null>(null);
-  // "Mudar resposta": reabre os cards da noite deste filho (chave filho:data).
-  const [correcting, setCorrecting] = useState<string | null>(null);
+  // Dose cujo check-in está sincronizando (bloqueia só aquele card).
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  // "Mudar resposta": reabre os cards da noite deste filho (chave filho:data) até
+  // "Concluir" ou até todas as doses serem respondidas de novo.
+  const [correcting, setCorrecting] = useState<{ id: string; answered: string[] } | null>(null);
 
   const children = useMemo(() => childrenQuery.data ?? [], [childrenQuery.data]);
 
@@ -153,6 +192,7 @@ export default function TodayScreen() {
   // Chips: cada filho + subtítulo do 1º tratamento (da query da família inteira).
   const prefs = useMemo(() => prefsQuery.data ?? [], [prefsQuery.data]);
   const pausedIds = usePausedChildIds(children.map((c) => c.id));
+  const routines = useMemo(() => routinesQuery.data ?? [], [routinesQuery.data]);
   const chips: ChildChip[] = useMemo(() => {
     const all = allTreatmentsQuery.data ?? [];
     return children.map((child) => ({
@@ -160,10 +200,15 @@ export default function TodayScreen() {
       subtitle: chipSubtitle(
         all.filter((t) => t.child_id === child.id),
         prefs,
-        pausedIds.has(child.id)
+        pausedIds.has(child.id),
+        routineFor(routines, child.id)
       ),
     }));
-  }, [children, allTreatmentsQuery.data, prefs, pausedIds]);
+  }, [children, allTreatmentsQuery.data, prefs, pausedIds, routines]);
+  const routine = useMemo(
+    () => routineFor(routines, activeChildId ?? ''),
+    [routines, activeChildId]
+  );
 
   // Tratamentos do filho ativo agendados para a noite em curso.
   const scheduledTreatments = useMemo(
@@ -174,15 +219,29 @@ export default function TodayScreen() {
     [childTreatmentsQuery.data, historyQuery.data, today, calendarToday]
   );
 
-  // Logs de HOJE do filho ativo (qualquer status conta como "respondido").
-  const todayLogs = useMemo(() => {
-    const byTreatment = new Map<string, AdherenceLog>();
-    for (const log of todayQuery.data ?? []) {
-      if (log.child_id === activeChildId && log.log_date === today) {
-        byTreatment.set(log.treatment_id, log);
+  // Uma tarefa por dose devida hoje, em ordem de horário.
+  const doseTasks = useMemo((): DoseTask[] => {
+    const tasks: DoseTask[] = [];
+    for (const t of scheduledTreatments) {
+      for (const slot of scheduledDoses(t, prefs, routine)) {
+        tasks.push({ ...slot, key: doseKey(t.id, slot.dose), treatment: t });
       }
     }
-    return byTreatment;
+    return tasks
+      .map((task, index) => ({ task, index }))
+      .sort((a, b) => doseSortKey(a.task.time) - doseSortKey(b.task.time) || a.index - b.index)
+      .map(({ task }) => task);
+  }, [scheduledTreatments, prefs, routine]);
+
+  // Logs de HOJE do filho ativo, por dose (qualquer status conta como "respondido").
+  const todayLogs = useMemo(() => {
+    const byDose = new Map<string, AdherenceLog>();
+    for (const log of todayQuery.data ?? []) {
+      if (log.child_id === activeChildId && log.log_date === today) {
+        byDose.set(doseKey(log.treatment_id, log.dose ?? 1), log);
+      }
+    }
+    return byDose;
   }, [todayQuery.data, activeChildId, today]);
 
   // Troca de regime pela clínica: o banco passa o check-in de hoje para o
@@ -204,19 +263,19 @@ export default function TodayScreen() {
     void queryClient.invalidateQueries({ queryKey: ['treatments'] });
   }, [unknownTreatmentIds, queryClient]);
 
-  const isCorrecting = correcting === `${activeChildId ?? ''}:${today}`;
+  const correctionId = `${activeChildId ?? ''}:${today}`;
+  const isCorrecting = correcting?.id === correctionId;
 
-  const pendingTreatments = useMemo(
-    () =>
-      isCorrecting
-        ? scheduledTreatments
-        : scheduledTreatments.filter((t) => !todayLogs.has(t.id)),
-    [scheduledTreatments, todayLogs, isCorrecting]
+  const pendingTasks = useMemo(
+    () => (isCorrecting ? doseTasks : doseTasks.filter((task) => !todayLogs.has(task.key))),
+    [doseTasks, todayLogs, isCorrecting]
   );
 
-  const allAnswered = scheduledTreatments.length > 0 && pendingTreatments.length === 0;
-  // A estrela só acende se TODOS os cuidados da noite foram feitos.
-  const allFeito = allAnswered && scheduledTreatments.every((t) => todayLogs.get(t.id)?.status === 'feito');
+  const allAnswered = doseTasks.length > 0 && doseTasks.every((task) => todayLogs.has(task.key));
+  // A estrela só acende se TODAS as doses e cuidados do dia foram feitos.
+  const allFeito = allAnswered && doseTasks.every((task) => todayLogs.get(task.key)?.status === 'feito');
+  // Colírio e lente de contato acontecem ao longo do dia, não só à noite.
+  const dayLong = scheduledTreatments.some((t) => t.type === 'colirio' || t.type === 'lente_contato');
   const paused = pausedQuery.data?.paused === true;
   // Noite já feita antes de ligar a pausa continua estrela: mostra o "Noite registrada".
   const showPause = paused && !allFeito && !isCorrecting;
@@ -281,18 +340,25 @@ export default function TodayScreen() {
     }
   };
 
-  const handleCheckin = (
-    treatment: Treatment,
-    status: AdherenceStatus,
-    note: string | null = null
-  ): void => {
+  const handleCheckin = (task: DoseTask, status: AdherenceStatus, note: string | null = null): void => {
     if (!activeChildId) return;
-    const replace = todayLogs.has(treatment.id);
-    setBusyTreatmentId(treatment.id);
-    setCorrecting(null);
+    const replace = todayLogs.has(task.key);
+    setBusyKey(task.key);
+    if (isCorrecting) {
+      const answered = [...new Set([...(correcting?.answered ?? []), task.key])];
+      const done = doseTasks.every((t) => answered.includes(t.key));
+      setCorrecting(done ? null : { id: correctionId, answered });
+    }
     checkin.mutate(
-      { treatmentId: treatment.id, childId: activeChildId, status, note, replace },
-      { onSettled: () => setBusyTreatmentId((prev) => (prev === treatment.id ? null : prev)) }
+      {
+        treatmentId: task.treatment.id,
+        childId: activeChildId,
+        dose: task.dose,
+        status,
+        note,
+        replace,
+      },
+      { onSettled: () => setBusyKey((prev) => (prev === task.key ? null : prev)) }
     );
   };
 
@@ -320,7 +386,7 @@ export default function TodayScreen() {
         {header}
         <View style={styles.centered}>
           <AppText variant="body" color={colors.ink2}>
-            Carregando a noite de hoje...
+            Carregando os cuidados de hoje...
           </AppText>
         </View>
       </Screen>
@@ -350,7 +416,7 @@ export default function TodayScreen() {
           <EmptyState
             icon={<LumiOwl size={72} />}
             title="Nenhuma criança por aqui ainda"
-            message="Assim que a clínica cadastrar o tratamento do seu filho, os cuidados da noite aparecem aqui."
+            message="Assim que a clínica cadastrar o tratamento do seu filho, os cuidados do dia aparecem aqui."
           />
         </View>
       </Screen>
@@ -403,7 +469,7 @@ export default function TodayScreen() {
           </Pressable>
         ) : null}
 
-        <SectionHeader title="Esta noite" />
+        <SectionHeader title={dayLong ? 'Cuidados de hoje' : 'Esta noite'} />
 
         {showPause && scheduledTreatments.length > 0 ? (
           <EmptyState
@@ -425,30 +491,48 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        {(showPause ? [] : pendingTreatments).map((t) => (
-          <TaskCard
-            key={t.id}
-            type={t.type}
-            title={taskTitle(t.type, childName)}
-            instruction={taskInstruction(t)}
-            time={reminderTimeLabel(t, prefs)}
-            busy={busyTreatmentId === t.id}
-            onDone={() => handleCheckin(t, 'feito')}
-            onSkip={(note) => handleCheckin(t, 'pulado', note)}
-          />
-        ))}
+        {(showPause ? [] : pendingTasks).map((task) => {
+          const t = task.treatment;
+          const time = task.time ? formatReminderTime(task.time) : null;
+          const multi = task.total > 1;
+          return (
+            <TaskCard
+              key={task.key}
+              type={t.type}
+              title={taskTitle(t.type, childName, t.name, t.times_per_day)}
+              subtitle={
+                multi ? [doseLabel(task.dose, task.total), time].filter(Boolean).join(' · ') : null
+              }
+              instruction={taskInstruction(t)}
+              time={multi ? null : time}
+              doseText={multi ? doseLabel(task.dose, task.total) : null}
+              currentStatus={todayLogs.get(task.key)?.status ?? null}
+              busy={busyKey === task.key}
+              onDone={() => handleCheckin(task, 'feito')}
+              onSkip={(note) => handleCheckin(task, 'pulado', note)}
+            />
+          );
+        })}
 
-        {!showPause && allAnswered ? (
+        {!showPause && isCorrecting ? (
+          <Button
+            label="Concluir"
+            onPress={() => setCorrecting(null)}
+            accessibilityLabel={`Concluir a correção da noite de ${childName}`}
+          />
+        ) : null}
+
+        {!showPause && allAnswered && !isCorrecting ? (
           <NightDoneCard
             childName={childName}
             variant={allFeito ? 'feito' : 'pulado'}
-            onChangeAnswer={() => setCorrecting(`${activeChildId ?? ''}:${today}`)}
+            onChangeAnswer={() => setCorrecting({ id: correctionId, answered: [] })}
           />
         ) : null}
 
         {scheduledTreatments.length === 0 ? (
           <EmptyState
-            title="Nenhum cuidado para esta noite"
+            title="Nenhum cuidado para hoje"
             message={`${childName} não tem cuidados programados para hoje. Aproveite a noite.`}
             style={styles.noTasks}
           />

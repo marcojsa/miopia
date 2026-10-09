@@ -1,5 +1,5 @@
-// Grupo (app): guard de auth + gate de consentimento LGPD + 3 abas (Hoje,
-// Progresso, Família). Visual dos mockups aprovados: ativo roxo #453A94,
+// Grupo (app): guard de auth + gate de consentimento LGPD + abas (Hoje, Céu,
+// Progresso, Mural, Família). Visual dos mockups aprovados: ativo roxo #453A94,
 // inativo #94A3B8, fundo branco, sem header default (cada tela cuida do topo).
 //
 // GATE LGPD: com sessão mas consentimento pendente para alguma criança, manda
@@ -9,20 +9,24 @@ import { Redirect, Tabs, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { StaffAccountScreen } from '@/components/auth/StaffAccountScreen';
-import { DocumentIcon, MoonIcon, PeopleIcon, StarIcon } from '@/components/icons';
+import { DocumentIcon, MoonIcon, PeopleIcon, PlayIcon, StarIcon } from '@/components/icons';
 import { NotificationPrimer } from '@/components/notificacoes/NotificationPrimer';
 import { BootScreen } from '@/components/ui';
 import {
   useChildren,
   useConsentPending,
+  useContents,
+  useHasMeasurements,
   useIsStaff,
   useNotificationPermission,
   useReminderSync,
 } from '@/hooks';
 import { CONVITE_HREF, usePendingPassword } from '@/hooks/usePendingPassword';
+import { notifId } from '@/lib/notifications/scheduler';
 import { useSession } from '@/providers/auth';
 import { useUiStore } from '@/stores/ui';
 import { colors, fonts } from '@/theme/tokens';
+import type { ReminderType } from '@/types/domain';
 
 /**
  * Efeitos que só valem depois dos gates (sessão, conta de responsável,
@@ -37,7 +41,9 @@ function AfterGates() {
   useEffect(() => {
     if (!pendingCheckin) return;
     useUiStore.setState({ pendingCheckin: null });
-    router.push(`/checkin/${pendingCheckin.childId}:${pendingCheckin.type}`);
+    const { childId, type, treatmentId, dose } = pendingCheckin;
+    const ref = treatmentId ? { treatmentId, dose: dose ?? 1 } : undefined;
+    router.push(`/checkin/${notifId(childId, type as ReminderType, null, ref)}`);
   }, [pendingCheckin, router]);
 
   return null;
@@ -50,6 +56,10 @@ export default function AppLayout() {
   const consent = useConsentPending(session?.user.id ?? null);
   const notifications = useNotificationPermission();
   const pendingPassword = usePendingPassword(session?.user.id ?? null);
+  // Aba Progresso só quando alguma criança da família tem medição de consulta.
+  const hasMeasurements = useHasMeasurements();
+  // Aba Mural só com pelo menos 1 conteúdo publicado pela clínica.
+  const contents = useContents();
   // A 1ª decisão do gate segura as abas; depois disso, recarregar filhos ou
   // consentimento (nova key) NÃO desmonta o navegador nem perde a rota atual.
   const decided = useRef(false);
@@ -128,8 +138,17 @@ export default function AppLayout() {
         <Tabs.Screen
           name="progress"
           options={{
+            href: hasMeasurements.data === false ? null : undefined,
             title: 'Progresso',
             tabBarIcon: ({ color, size }) => <DocumentIcon color={color} size={size ?? 24} />,
+          }}
+        />
+        <Tabs.Screen
+          name="mural"
+          options={{
+            href: contents.data?.length === 0 ? null : undefined,
+            title: 'Mural',
+            tabBarIcon: ({ color, size }) => <PlayIcon color={color} size={size ?? 24} />,
           }}
         />
         <Tabs.Screen

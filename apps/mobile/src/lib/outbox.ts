@@ -1,8 +1,8 @@
 // Outbox de check-ins (AsyncStorage) — o check-in NUNCA depende de rede no handler.
 // Reconciliação com o banco (docs/notas-implementacao.md §1):
-//   - tabela adherence_logs, UNIQUE(treatment_id, log_date) — SEM coluna client_id;
-//   - upsert com onConflict 'treatment_id,log_date' + ignoreDuplicates (retry seguro e
-//     pai/mãe marcando a mesma noite não duplicam); correções (replace) sobrescrevem;
+//   - tabela adherence_logs, UNIQUE(treatment_id, log_date, dose) — SEM coluna client_id;
+//   - upsert com onConflict 'treatment_id,log_date,dose' + ignoreDuplicates (retry seguro e
+//     pai/mãe marcando a mesma dose não duplicam); correções (replace) sobrescrevem;
 //   - client_id é só deduplicação LOCAL dentro da fila, nunca vai ao banco.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,7 +31,8 @@ export function newClientId(): string {
 async function readQueue(): Promise<PendingCheckin[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as PendingCheckin[]) : [];
+    // Itens gravados antes das doses não têm `dose`: valem como a dose 1.
+    return raw ? (JSON.parse(raw) as PendingCheckin[]).map((c) => ({ ...c, dose: c.dose ?? 1 })) : [];
   } catch {
     return [];
   }
@@ -45,6 +46,8 @@ export interface EnqueueCheckinInput {
   treatment_id: string;
   child_id: string;
   log_date: string; // data lógica — usar localDateString() (corte 04h)
+  /** Dose do dia (1..times_per_day); padrão 1. */
+  dose?: number;
   status: AdherenceStatus;
   note?: string | null;
   logged_by: string | null;
@@ -53,9 +56,9 @@ export interface EnqueueCheckinInput {
 }
 
 /**
- * Grava o check-in no outbox local. Dedup local: um item por (treatment_id, log_date)
- * — a resposta mais recente vence NA FILA. No servidor a primeira resposta da noite
- * vence, exceto quando o item é uma correção (replace).
+ * Grava o check-in no outbox local. Dedup local: um item por (treatment_id, log_date,
+ * dose) — a resposta mais recente vence NA FILA. No servidor a primeira resposta da
+ * dose vence, exceto quando o item é uma correção (replace).
  */
 export async function enqueueCheckin(input: EnqueueCheckinInput): Promise<void> {
   const q = await readQueue();
@@ -65,6 +68,7 @@ export async function enqueueCheckin(input: EnqueueCheckinInput): Promise<void> 
       treatment_id: input.treatment_id,
       child_id: input.child_id,
       log_date: input.log_date,
+      dose: input.dose ?? 1,
       status: input.status,
       note: input.note ?? null,
       logged_by: input.logged_by,
@@ -77,21 +81,22 @@ async function upsertItems(
   items: PendingCheckin[],
   userId: string,
   replace: boolean
-): Promise<{ ok: boolean; status: number }> {
+): Promise<{ ok: boolean; status: number; code: string | null }> {
   // client_id existe SÓ no outbox — nunca enviar ao banco. logged_by é sempre o
   // usuário da sessão (a RLS exige logged_by = auth.uid()).
   const rows = items.map((c) => ({
     treatment_id: c.treatment_id,
     child_id: c.child_id,
     log_date: c.log_date,
+    dose: c.dose ?? 1,
     status: c.status,
     note: c.note,
     logged_by: userId,
   }));
   const { error, status } = await supabase
     .from('adherence_logs')
-    .upsert(rows, { onConflict: 'treatment_id,log_date', ignoreDuplicates: !replace });
-  return { ok: !error, status };
+    .upsert(rows, { onConflict: 'treatment_id,log_date,dose', ignoreDuplicates: !replace });
+  return { ok: !error, status, code: error?.code ?? null };
 }
 
 /**
@@ -107,13 +112,13 @@ async function sendGroup(
   if (items.length === 0) return [];
   const batch = await upsertItems(items, userId, replace);
   if (batch.ok) return items.map((c) => c.client_id);
-  if (!isPermanentRejection(batch.status)) return [];
+  if (!isPermanentRejection(batch.status, batch.code)) return [];
   if (items.length === 1) return [items[0].client_id];
 
   const resolved: string[] = [];
   for (const item of items) {
     const res = await upsertItems([item], userId, replace);
-    if (res.ok || isPermanentRejection(res.status)) resolved.push(item.client_id);
+    if (res.ok || isPermanentRejection(res.status, res.code)) resolved.push(item.client_id);
   }
   return resolved;
 }

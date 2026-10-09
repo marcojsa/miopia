@@ -15,4 +15,5 @@ export {
   isScheduledTonight,
   wasScheduledOn,
   dueCareCount,
+  doseSortKey,
 } from './hojeHelpers';

@@ -32,7 +32,7 @@ export function NotificationPrimer({ onDone }: NotificationPrimerProps) {
       <View style={styles.root}>
         <EmptyState
           icon={<LumiOwl size={88} />}
-          title="Ative os lembretes da noite"
+          title="Ative os lembretes do cuidado"
           message="O Lumi avisa na hora do colírio ou da lente, e você marca Feito direto na notificação. Sem a sua permissão, o aparelho não mostra nenhum lembrete."
         />
         <Button

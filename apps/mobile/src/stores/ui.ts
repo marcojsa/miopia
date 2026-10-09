@@ -10,7 +10,7 @@ interface UiState {
    * Check-in pedido pelo toque no corpo da notificação. Fica guardado até o grupo
    * (app) passar pelos gates (sessão, consentimento) e o navegador existir.
    */
-  pendingCheckin: { childId: string; type: string } | null;
+  pendingCheckin: { childId: string; type: string; treatmentId?: string; dose?: number } | null;
   /** Aviso mostrado uma vez na Welcome (ex.: conta excluída). Sobrevive ao sair. */
   welcomeNotice: string | null;
 }

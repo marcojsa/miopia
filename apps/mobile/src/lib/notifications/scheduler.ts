@@ -1,7 +1,9 @@
 // Reconciliação DECLARATIVA dos lembretes locais (design-mobile §multi-filho).
 // - Triggers repetitivos: diário quando a prescrição é todo dia; um semanal por dia
 //   quando days_of_week é restrito (pior caso iOS: 2 filhos x 3 tipos x 7 = 42 de 64).
-// - Identifier determinístico `${childId}:${tipo}[:dia]` => cancelar/reagendar é idempotente.
+// - Identifier determinístico `${childId}:${tipo}[:dia]` (colírio/lente:
+//   `${childId}:${tipo}:${treatmentId}:${dose}[:dia]`) => cancelar/reagendar é idempotente.
+// - iOS guarda no máximo 64 agendadas: acima de 60, prioriza (capSchedule) e avisa.
 // - TODA mudança (novo filho, horário, pausa, troca de regime) passa por
 //   syncSchedulesForFamily(): compara desejado vs pendente e aplica só o delta.
 import * as Notifications from 'expo-notifications';
@@ -11,7 +13,7 @@ import type { ChildScheduleInput } from '../../types/domain';
 import { localDateString } from '../date';
 import { REMINDER_CHANNEL_ID } from './channels';
 import { CHECKIN_CATEGORY_ID } from './categories';
-import { buildDesired, type DesiredSchedule } from './schedulePlan';
+import { buildDesired, capSchedule, IOS_SCHEDULE_LIMIT, type DesiredSchedule } from './schedulePlan';
 
 export { notifId, parseNotifId } from './schedulePlan';
 
@@ -43,6 +45,7 @@ function alreadyScheduled(
   const category = d.withCheckinActions ? CHECKIN_CATEGORY_ID : null;
   if ((p.content.categoryIdentifier ?? null) !== category) return false;
   if (p.content.data?.treatmentId !== d.treatmentId) return false;
+  if ((p.content.data?.dose ?? 1) !== d.dose) return false;
   return true;
 }
 
@@ -53,7 +56,17 @@ function alreadyScheduled(
  */
 export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Promise<void> {
   if (Platform.OS === 'web') return; // sem notificações no navegador (só testes)
-  const desired = buildDesired(children, localDateString());
+  let desired = buildDesired(children, localDateString());
+  if (Platform.OS === 'ios') {
+    const capped = capSchedule(desired, IOS_SCHEDULE_LIMIT);
+    if (capped.dropped.length > 0) {
+      console.warn(
+        `[lembretes] ${desired.size} lembretes passam do limite do iOS; ${capped.dropped.length} ficaram de fora:`,
+        capped.dropped
+      );
+    }
+    desired = capped.kept;
+  }
 
   // Estado ATUAL no SO
   const pending = await Notifications.getAllScheduledNotificationsAsync();
@@ -75,12 +88,13 @@ export async function syncSchedulesForFamily(children: ChildScheduleInput[]): Pr
       content: {
         title: d.title,
         body: d.body,
-        // Botões Feito / Pular hoje só à noite: a retirada da manhã não registra a noite.
+        // Botões Feito / Pular hoje só nos lembretes que registram o cuidado.
         ...(d.withCheckinActions ? { categoryIdentifier: CHECKIN_CATEGORY_ID } : {}),
         data: {
           childId: d.childId,
           type: d.type,
           treatmentId: d.treatmentId,
+          dose: d.dose,
           scheduledHour: d.hour,
           scheduledMinute: d.minute,
         },

@@ -30,7 +30,8 @@ import {
   formatReminderTime,
   formatTimePtBR,
   ORTHOK_OFF_TIME,
-  regimeLabel,
+  reminderTimeLabel,
+  treatmentLabel,
 } from '@/components/familia';
 import { ChevronIcon, DropIcon, LensIcon, SunriseIcon } from '@/components/icons';
 import { LumiOwl } from '@/components/lumi/LumiOwl';
@@ -38,12 +39,14 @@ import { AppText, Card, EmptyState, Pill, Screen } from '@/components/ui';
 import {
   getPausedState,
   queryKeys,
+  useChildRoutines,
   useChildren,
   usePausedDates,
   useReminderPrefs,
   useTreatments,
   setChildPaused,
 } from '@/hooks';
+import { dosesPerDay, routineFor, usesRoutine, type Routine } from '@/lib/doseSchedule';
 import { syncSchedulesForFamily } from '@/lib/notifications/scheduler';
 import { colors, radii, spacing } from '@/theme/tokens';
 import type { ReminderPref, Treatment } from '@/types/domain';
@@ -59,6 +62,8 @@ export default function ChildDetailScreen() {
   const treatmentsQuery = useTreatments(childId);
   const prefsQuery = useReminderPrefs();
   const pausedQuery = usePausedDates(childId);
+  const routinesQuery = useChildRoutines();
+  const routine = routineFor(routinesQuery.data ?? [], childId);
 
   const [togglingPause, setTogglingPause] = useState(false);
 
@@ -139,7 +144,13 @@ export default function ChildDetailScreen() {
         })
       );
 
-      const schedule = buildFamilySchedule(allChildren, allTreatments, prefs, pausedSet);
+      const schedule = buildFamilySchedule(
+        allChildren,
+        allTreatments,
+        prefs,
+        pausedSet,
+        routinesQuery.data ?? []
+      );
       await syncSchedulesForFamily(schedule);
     } catch {
       Alert.alert(
@@ -173,7 +184,7 @@ export default function ChildDetailScreen() {
               <View key={treatment.id} style={styles.cardWrap}>
                 <RegimeCard
                   treatment={treatment}
-                  reminderTime={describeReminder(treatment, prefs)}
+                  reminderTime={describeReminder(treatment, prefs, routine)}
                   paused={paused}
                 />
               </View>
@@ -196,7 +207,8 @@ export default function ChildDetailScreen() {
                 <View style={styles.linkText}>
                   <AppText variant="cardTitle">Ajustar lembretes</AppText>
                   <AppText variant="meta" color={colors.ink2} style={styles.linkSub}>
-                    Mude o horário em que cada lembrete chega no seu aparelho.
+                    Rotina de {child.first_name} (acorda e dorme) e o horário de cada lembrete
+                    neste aparelho.
                   </AppText>
                 </View>
                 <ChevronIcon direction="right" color={colors.ink3} size={20} />
@@ -240,8 +252,15 @@ export default function ChildDetailScreen() {
   );
 }
 
-/** Texto do horário de lembrete efetivo (preferência > sugestão > fallback). */
-function describeReminder(treatment: Treatment, prefs: ReminderPref[]): string {
+/**
+ * Texto do horário de lembrete efetivo (preferência > sugestão > fallback). Colírio
+ * de várias doses e lente de contato: os horários calculados da rotina.
+ */
+function describeReminder(treatment: Treatment, prefs: ReminderPref[], routine: Routine): string {
+  if (usesRoutine(treatment)) {
+    const times = reminderTimeLabel(treatment, prefs, routine) ?? '';
+    return treatment.type === 'lente_contato' ? times.charAt(0).toUpperCase() + times.slice(1) : times;
+  }
   const time = effectiveTime(treatment, prefs, fallbackTimeFor(treatment.type));
   if (treatment.type === 'ortho_k') {
     return `Colocar ${formatReminderTime(time)} · retirar ${formatReminderTime(ORTHOK_OFF_TIME)}`;
@@ -256,21 +275,27 @@ interface RegimeCardProps {
 }
 
 function RegimeCard({ treatment, reminderTime, paused }: RegimeCardProps) {
-  const suggested = formatTimePtBR(treatment.suggested_time);
+  const suggested = usesRoutine(treatment) ? null : formatTimePtBR(treatment.suggested_time);
+  const n = dosesPerDay(treatment);
   return (
     <Card>
       <View style={styles.regimeHead}>
         <View style={styles.regimeIcon}>
-          {treatment.type === 'atropina' ? (
+          {treatment.type === 'atropina' || treatment.type === 'colirio' ? (
             <DropIcon size={22} color={colors.purple} />
-          ) : treatment.type === 'ortho_k' ? (
+          ) : treatment.type === 'ortho_k' || treatment.type === 'lente_contato' ? (
             <LensIcon size={22} color={colors.purple} />
           ) : (
             <SunriseIcon size={22} color={colors.purple} />
           )}
         </View>
         <View style={styles.regimeTitleWrap}>
-          <AppText variant="cardTitle">{regimeLabel(treatment.type)}</AppText>
+          <AppText variant="cardTitle">{treatmentLabel(treatment)}</AppText>
+          {n > 1 ? (
+            <AppText variant="meta" color={colors.ink2} style={styles.regimeSuggested}>
+              {n} vezes por dia, entre o acordar e o dormir
+            </AppText>
+          ) : null}
           {suggested ? (
             <AppText variant="meta" color={colors.ink2} style={styles.regimeSuggested}>
               Horário sugerido pela médica: {suggested}

@@ -13,8 +13,17 @@ export type AdherenceStatus = Database['public']['Enums']['adherence_status'];
 export type ClinicalStatus = Database['public']['Enums']['clinical_status'];
 
 // Tipo de lembrete LOCAL (não existe no banco): ortho_k gera DOIS lembretes
-// (colocar à noite, retirar de manhã) do MESMO tratamento.
-export type ReminderType = 'atropina' | 'orthok_on' | 'orthok_off';
+// (colocar à noite, retirar de manhã) do MESMO tratamento. Colírio gera um por
+// dose; a lente de contato, colocar (ao acordar) e tirar (antes de dormir), e
+// 'lente_dose' para as doses do meio quando a clínica pede mais de uma por dia.
+export type ReminderType =
+  | 'atropina'
+  | 'orthok_on'
+  | 'orthok_off'
+  | 'colirio'
+  | 'lente_on'
+  | 'lente_dose'
+  | 'lente_off';
 
 // ── Linhas das tabelas (somente colunas que o app lê/escreve) ────────────────
 // Sem chart_ref: nº de prontuário é uso interno da clínica, NUNCA chega ao app.
@@ -25,7 +34,17 @@ export type Child = Pick<
 
 export type Treatment = Pick<
   Tables['treatments']['Row'],
-  'id' | 'child_id' | 'type' | 'instructions' | 'suggested_time' | 'days_of_week' | 'starts_on' | 'ends_on' | 'active'
+  | 'id'
+  | 'child_id'
+  | 'type'
+  | 'name'
+  | 'times_per_day'
+  | 'instructions'
+  | 'suggested_time'
+  | 'days_of_week'
+  | 'starts_on'
+  | 'ends_on'
+  | 'active'
 >;
 
 // reminder_time: 'HH:MM:SS' — preferência do responsável (separada da prescrição)
@@ -34,10 +53,16 @@ export type ReminderPref = Pick<
   'guardian_user_id' | 'treatment_id' | 'reminder_time' | 'enabled'
 >;
 
-// log_date: data lógica da "noite" (corte 04h — ver lib/date.ts)
+// log_date: data lógica da "noite" (corte 04h — ver lib/date.ts); dose: 1..times_per_day
 export type AdherenceLog = Pick<
   Tables['adherence_logs']['Row'],
-  'id' | 'treatment_id' | 'child_id' | 'log_date' | 'status' | 'note' | 'logged_by' | 'created_at'
+  'id' | 'treatment_id' | 'child_id' | 'log_date' | 'dose' | 'status' | 'note' | 'logged_by' | 'created_at'
+>;
+
+// Rotina da criança (preferência do responsável): wake_time/bed_time 'HH:MM:SS'.
+export type ChildRoutine = Pick<
+  Tables['child_routines']['Row'],
+  'guardian_user_id' | 'child_id' | 'wake_time' | 'bed_time'
 >;
 
 // od_se/oe_se: equivalente esférico — colunas GENERATED, o app só EXIBE.
@@ -66,6 +91,8 @@ export interface PendingCheckin {
   treatment_id: string;
   child_id: string;
   log_date: string;
+  /** Dose do dia (1..times_per_day). Itens antigos da fila, sem dose, valem como 1. */
+  dose: number;
   status: AdherenceStatus;
   note: string | null;
   logged_by: string | null;
@@ -97,4 +124,30 @@ export interface ChildScheduleInput {
     offTime: ReminderTime;
     schedule: ReminderSchedule;
   };
+  /** Colírio (cada dose) e lente de contato: horários já calculados da rotina ou do lembrete. */
+  doses?: DoseReminderInput[];
 }
+
+export interface DoseReminderInput {
+  treatmentId: string;
+  type: 'colirio' | 'lente_on' | 'lente_dose' | 'lente_off';
+  /** Dose do dia que o lembrete registra (1..total). */
+  dose: number;
+  /** times_per_day do tratamento. */
+  total: number;
+  /** Nome do colírio (já com o padrão "Colírio"). */
+  label: string;
+  time: ReminderTime;
+  schedule: ReminderSchedule;
+  /** Botões Feito/Pular (o "colocar" da lente de 1 vez por dia só lembra). */
+  withCheckinActions: boolean;
+}
+
+/** Categoria de um conteúdo do mural (check no banco). */
+export type ContentCategory = 'lente' | 'colirio' | 'oculos' | 'geral';
+
+/** Conteúdo educativo publicado pela clínica no mural (a família só lê os publicados). */
+export type Content = Pick<
+  Tables['contents']['Row'],
+  'id' | 'title' | 'body' | 'youtube_url' | 'sort_order' | 'created_at'
+> & { category: ContentCategory };
