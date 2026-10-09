@@ -49,6 +49,7 @@ export type TreatmentInsert = Pick<
   | 'created_by'
   | 'name'
   | 'times_per_day'
+  | 'max_wear_hours'
 >;
 
 // EE (od_se/oe_se) fica FORA do payload de propósito: o gerador do Supabase

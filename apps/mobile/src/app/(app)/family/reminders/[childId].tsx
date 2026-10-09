@@ -8,15 +8,24 @@
 // (07h) no MVP — mostrada como informação, não editável.
 //
 // Rotina da criança (acorda/dorme, child_routines): mesmo seletor de horário, com
-// "Salvar rotina" próprio. Dela saem os horários do colírio de várias doses e da
-// lente de contato (colocar ao acordar, tirar antes de dormir), mostrados aqui
-// como informação.
+// "Salvar rotina" próprio. Dela saem os horários do colírio de várias doses,
+// mostrados aqui como informação.
+//
+// Lente de contato (1 vez por dia): o responsável escolhe a hora de colocar
+// (reminder_prefs.reminder_time) e a de tirar (remove_time). A Dra. passa a regra
+// e pode limitar as horas de uso: a tela mostra a regra e avisa quando a escolha
+// passa do limite. "Usar a rotina" apaga a preferência (volta ao padrão).
+//
+// Troca de regime pela clínica: a tela rebusca os tratamentos ao abrir e ao ganhar
+// foco, e todo salvamento rebusca antes de gravar e grava no tratamento ATIVO
+// correspondente (mesmo tipo; no colírio, mesmo nome). Se ele não existe mais, avisa
+// e não grava. O banco também redireciona (20261009000001).
 //
 // ANVISA/LGPD: aqui só há preferência de horário de notificação. Nenhum dado
 // clínico é exibido, calculado ou julgado.
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -32,6 +41,8 @@ import {
   fallbackTimeFor,
   formatReminderTime,
   formatTimePtBR,
+  isDailyLens,
+  lensTimesFor,
   ORTHOK_OFF_TIME,
   parseHM,
   reminderTimeLabel,
@@ -54,8 +65,11 @@ import {
 import {
   dosesPerDay,
   fromMinutes,
+  LENS_ORDER_WARNING,
+  lensTimes,
   outsideRoutine,
   routineError,
+  sameColirio,
   usesRoutine,
   type Routine,
 } from '@/lib/doseSchedule';
@@ -64,7 +78,7 @@ import { syncSchedulesForFamily } from '@/lib/notifications/scheduler';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/auth';
 import { colors, radii, spacing } from '@/theme/tokens';
-import type { ReminderTime, Treatment } from '@/types/domain';
+import type { ReminderPref, ReminderTime, Treatment } from '@/types/domain';
 
 // Horários comuns no MVP: 19h30 a 22h30, de 30 em 30 minutos.
 const COMMON_TIMES: ReminderTime[] = [
@@ -95,6 +109,17 @@ const BED_TIMES: ReminderTime[] = [
   { hour: 22, minute: 30 },
 ];
 
+// Lente de contato: horários comuns de tirar (os de colocar são os de acordar).
+const LENS_OFF_TIMES: ReminderTime[] = [
+  { hour: 15, minute: 0 },
+  { hour: 16, minute: 0 },
+  { hour: 17, minute: 0 },
+  { hour: 18, minute: 0 },
+  { hour: 19, minute: 0 },
+  { hour: 20, minute: 0 },
+  { hour: 21, minute: 0 },
+];
+
 const STEP_MINUTES = 5;
 const MIN_TOTAL = 0; // 00h00
 const MAX_TOTAL = 23 * 60 + 55; // 23h55
@@ -107,6 +132,19 @@ function fromTotal(total: number): ReminderTime {
   const clamped = Math.max(MIN_TOTAL, Math.min(MAX_TOTAL, total));
   return { hour: Math.floor(clamped / 60), minute: clamped % 60 };
 }
+
+/** Cópia do mapa sem a chave `key`. */
+function without<T>(map: Record<string, T>, key: string): Record<string, T> {
+  const copy = { ...map };
+  delete copy[key];
+  return copy;
+}
+
+/** A clínica encerrou o tratamento e não há ativo correspondente: não grava. */
+const TREATMENT_CHANGED =
+  'A clínica alterou este tratamento. Atualizamos a tela; confira os horários e salve de novo.';
+
+class TreatmentChangedError extends Error {}
 
 function sameTime(a: ReminderTime, b: ReminderTime): boolean {
   return a.hour === b.hour && a.minute === b.minute;
@@ -126,7 +164,14 @@ export default function RemindersScreen() {
   const { session } = useSession();
 
   const childrenQuery = useChildren();
-  const treatmentsQuery = useTreatments(childId);
+  const treatmentsQuery = useTreatments(childId, { alwaysFresh: true });
+  // Voltar para esta tela (foco) também rebusca: a clínica pode ter trocado o regime.
+  const refetchTreatments = treatmentsQuery.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      void refetchTreatments();
+    }, [refetchTreatments])
+  );
   const prefsQuery = useReminderPrefs();
   const routinesQuery = useChildRoutines();
   const { routine, save: saveRoutine } = useChildRoutine(childId);
@@ -145,9 +190,14 @@ export default function RemindersScreen() {
       ),
     [treatmentsQuery.data]
   );
-  // Colírio de várias doses e lente de contato: horários saem da rotina.
+  // Colírio de várias doses (e lente com mais de 1 vez por dia): horários saem da rotina.
   const routineTreatments = useMemo(
-    () => (treatmentsQuery.data ?? []).filter((t) => usesRoutine(t)),
+    () => (treatmentsQuery.data ?? []).filter((t) => usesRoutine(t) && !isDailyLens(t)),
+    [treatmentsQuery.data]
+  );
+  // Lente de contato de 1 vez por dia: hora de colocar e de tirar escolhidas aqui.
+  const lensTreatments = useMemo(
+    () => (treatmentsQuery.data ?? []).filter((t) => isDailyLens(t)),
     [treatmentsQuery.data]
   );
 
@@ -205,6 +255,16 @@ export default function RemindersScreen() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
 
+  // Lente: horários em edição (o que não foi mexido segue a preferência salva ou a rotina).
+  const [lensEdits, setLensEdits] = useState<Record<string, { on?: ReminderTime; off?: ReminderTime }>>({});
+  const [lensStatus, setLensStatus] = useState<Record<string, Status>>({});
+  const [lensSaving, setLensSaving] = useState<string | null>(null);
+
+  const editLens = (treatmentId: string, patch: { on?: ReminderTime; off?: ReminderTime }): void => {
+    setLensStatus((prev) => without(prev, treatmentId));
+    setLensEdits((prev) => ({ ...prev, [treatmentId]: { ...prev[treatmentId], ...patch } }));
+  };
+
   // Horário atual de um tratamento: editado (se houver) ou o inicial calculado.
   const timeFor = (treatmentId: string): ReminderTime =>
     times[treatmentId] ?? initialTimes[treatmentId] ?? { hour: 20, minute: 30 };
@@ -255,7 +315,7 @@ export default function RemindersScreen() {
     );
   }
 
-  if (treatments.length === 0 && routineTreatments.length === 0) {
+  if (treatments.length === 0 && routineTreatments.length === 0 && lensTreatments.length === 0) {
     return (
       <Screen edges={['top', 'left', 'right']}>
         {header}
@@ -271,6 +331,173 @@ export default function RemindersScreen() {
     );
   }
 
+  /**
+   * Rebusca os tratamentos deste filho e devolve, para cada um da tela, o ATIVO
+   * correspondente (o mesmo id; ou, depois de uma troca de regime, o do mesmo tipo
+   * e, no colírio, do mesmo nome). Sem correspondente, lança TreatmentChangedError.
+   */
+  const resolveActive = async (
+    shown: Treatment[]
+  ): Promise<{ fresh: Treatment[]; byShownId: Map<string, Treatment> }> => {
+    const result = await refetchTreatments();
+    if (result.error || !result.data) throw result.error ?? new Error('tratamentos indisponíveis');
+    const fresh = result.data.filter((t) => t.active);
+    const byShownId = new Map<string, Treatment>();
+    for (const t of shown) {
+      const current =
+        fresh.find((a) => a.id === t.id) ??
+        fresh.find((a) => a.type === t.type && (t.type !== 'colirio' || sameColirio(a.name, t.name)));
+      if (!current) throw new TreatmentChangedError(TREATMENT_CHANGED);
+      byShownId.set(t.id, current);
+    }
+    return { fresh, byShownId };
+  };
+
+  // Reagenda com as preferências novas. Reconstrói o estado de pausa de cada
+  // filho para não reativar lembretes de quem está de férias. `freshChild`: os
+  // tratamentos deste filho recém-buscados (o cache da família pode estar velho).
+  const reschedule = async (nextPrefs: ReminderPref[], freshChild: Treatment[]): Promise<void> => {
+    const allChildren = childrenQuery.data ?? [];
+    const allTreatments = [
+      ...(queryClient.getQueryData<Treatment[]>(queryKeys.treatments(undefined)) ?? []).filter(
+        (t) => t.child_id !== childId
+      ),
+      ...freshChild,
+    ];
+    void queryClient.invalidateQueries({ queryKey: queryKeys.treatments(undefined) });
+    const pausedSet = new Set<string>();
+    await Promise.all(
+      allChildren.map(async (c) => {
+        const state = await getPausedState(c.id);
+        if (state.paused) pausedSet.add(c.id);
+      })
+    );
+    const schedule = buildFamilySchedule(
+      allChildren,
+      allTreatments,
+      nextPrefs,
+      pausedSet,
+      routinesQuery.data ?? []
+    );
+    await syncSchedulesForFamily(schedule);
+  };
+
+  // Rotina usada nos avisos e nos padrões: a que está na tela, se válida.
+  const shownRoutine = routineInvalid ? routine : editingRoutine;
+
+  /** Horários da lente na tela: edição > preferência salva > rotina (com o limite da Dra.). */
+  const lensView = (t: Treatment) => {
+    const saved = lensTimesFor(t, prefs, shownRoutine);
+    const hasPref = prefs.some((p) => p.treatment_id === t.id && p.enabled);
+    const edit = lensEdits[t.id];
+    const current = lensTimes({
+      wake: shownRoutine.wake,
+      bed: shownRoutine.bed,
+      maxHours: t.max_wear_hours ?? null,
+      prefOn: edit?.on ? fromMinutes(toTotal(edit.on)) : hasPref ? saved.on : null,
+      prefOff: edit?.off ? fromMinutes(toTotal(edit.off)) : hasPref ? saved.off : null,
+    });
+    return {
+      on: parseHM(current.on) ?? { hour: 7, minute: 0 },
+      off: parseHM(current.off) ?? { hour: 21, minute: 0 },
+      warning: current.warning,
+      hasPref,
+    };
+  };
+
+  const handleSaveLens = async (t: Treatment): Promise<void> => {
+    if (lensSaving) return;
+    const userId = session?.user.id;
+    const setOwnStatus = (s: Status): void => setLensStatus((prev) => ({ ...prev, [t.id]: s }));
+    if (!userId) {
+      setOwnStatus({ kind: 'error', text: 'Sua sessão expirou. Entre de novo para salvar.' });
+      return;
+    }
+    const view = lensView(t);
+    if (view.warning === LENS_ORDER_WARNING) {
+      setOwnStatus({ kind: 'error', text: LENS_ORDER_WARNING });
+      return;
+    }
+    setLensSaving(t.id);
+    try {
+      const { fresh, byShownId } = await resolveActive([t]);
+      const active = byShownId.get(t.id) as Treatment;
+      const row: ReminderPref = {
+        guardian_user_id: userId,
+        treatment_id: active.id,
+        reminder_time: toReminderTimeString(view.on),
+        remove_time: toReminderTimeString(view.off),
+        enabled: true,
+      };
+      const { error } = await supabase
+        .from('reminder_prefs')
+        .upsert(row, { onConflict: 'guardian_user_id,treatment_id' });
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.reminderPrefs });
+      setLensEdits((prev) => without(prev, t.id));
+      await reschedule([...prefs.filter((p) => p.treatment_id !== active.id), row], fresh);
+      setLensStatus((prev) => ({
+        ...without(prev, t.id),
+        [active.id]: {
+          kind: 'info',
+          text: `Horários da lente salvos: colocar ${formatReminderTime(view.on)}, tirar ${formatReminderTime(view.off)}.`,
+        },
+      }));
+    } catch (e) {
+      setOwnStatus({
+        kind: 'error',
+        text:
+          e instanceof TreatmentChangedError
+            ? e.message
+            : 'Não foi possível salvar agora. Verifique sua internet e tente de novo.',
+      });
+    } finally {
+      setLensSaving(null);
+    }
+  };
+
+  // "Usar a rotina": apaga a preferência da lente (volta ao padrão).
+  const handleResetLens = async (t: Treatment): Promise<void> => {
+    if (lensSaving) return;
+    const userId = session?.user.id;
+    const setOwnStatus = (s: Status): void => setLensStatus((prev) => ({ ...prev, [t.id]: s }));
+    if (!userId) {
+      setOwnStatus({ kind: 'error', text: 'Sua sessão expirou. Entre de novo para salvar.' });
+      return;
+    }
+    setLensSaving(t.id);
+    try {
+      const { fresh, byShownId } = await resolveActive([t]);
+      const active = byShownId.get(t.id) as Treatment;
+      const { error } = await supabase
+        .from('reminder_prefs')
+        .delete()
+        .eq('guardian_user_id', userId)
+        .eq('treatment_id', active.id);
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.reminderPrefs });
+      setLensEdits((prev) => without(prev, t.id));
+      await reschedule(prefs.filter((p) => p.treatment_id !== active.id), fresh);
+      setLensStatus((prev) => ({
+        ...without(prev, t.id),
+        [active.id]: { kind: 'info', text: 'Pronto. A lente voltou a seguir a rotina.' },
+      }));
+    } catch (e) {
+      if (e instanceof TreatmentChangedError) {
+        setOwnStatus({ kind: 'error', text: e.message });
+        return;
+      }
+      setOwnStatus({
+        kind: 'error',
+        text: 'Não foi possível voltar à rotina agora. Verifique sua internet e tente de novo.',
+      });
+    } finally {
+      setLensSaving(null);
+    }
+  };
+
   const handleSave = async (): Promise<void> => {
     if (saving) return;
     if (!session?.user.id) {
@@ -280,12 +507,24 @@ export default function RemindersScreen() {
     setStatus(null);
     setSaving(true);
     try {
-      const rows = treatments.map((t) => ({
-        guardian_user_id: session.user.id,
-        treatment_id: t.id,
-        reminder_time: toReminderTimeString(timeFor(t.id)),
-        enabled: true,
-      }));
+      const { fresh, byShownId } = await resolveActive(treatments);
+      // Um por tratamento ativo (dois da tela nunca caem no mesmo, mas a PK não perdoa).
+      const rows = [
+        ...new Map(
+          treatments.map((t) => {
+            const activeId = (byShownId.get(t.id) as Treatment).id;
+            return [
+              activeId,
+              {
+                guardian_user_id: session.user.id,
+                treatment_id: activeId,
+                reminder_time: toReminderTimeString(timeFor(t.id)),
+                enabled: true,
+              },
+            ] as const;
+          })
+        ).values(),
+      ];
 
       const { error } = await supabase
         .from('reminder_prefs')
@@ -294,15 +533,12 @@ export default function RemindersScreen() {
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.reminderPrefs });
 
-      // Reagenda com os horários novos. Reconstrói o estado de pausa de cada
-      // filho para não reativar lembretes de quem está de férias.
-      const allChildren = childrenQuery.data ?? [];
-      const allTreatments =
-        queryClient.getQueryData<Treatment[]>(queryKeys.treatments(undefined)) ?? treatments;
-      const updatedPrefs = rows.map((r) => ({
+      // Reagenda com os horários novos.
+      const updatedPrefs: ReminderPref[] = rows.map((r) => ({
         guardian_user_id: r.guardian_user_id,
         treatment_id: r.treatment_id,
         reminder_time: r.reminder_time,
+        remove_time: null,
         enabled: r.enabled,
       }));
       // Mescla as preferências novas sobre as antigas (outros filhos intactos).
@@ -310,21 +546,7 @@ export default function RemindersScreen() {
         ...prefs.filter((p) => !updatedPrefs.some((u) => u.treatment_id === p.treatment_id)),
         ...updatedPrefs,
       ];
-      const pausedSet = new Set<string>();
-      await Promise.all(
-        allChildren.map(async (c) => {
-          const state = await getPausedState(c.id);
-          if (state.paused) pausedSet.add(c.id);
-        })
-      );
-      const schedule = buildFamilySchedule(
-        allChildren,
-        allTreatments,
-        mergedPrefs,
-        pausedSet,
-        routinesQuery.data ?? []
-      );
-      await syncSchedulesForFamily(schedule);
+      await reschedule(mergedPrefs, fresh);
 
       // Android 13+: sem a permissão o lembrete agendado não aparece.
       const permission = await requestNotificationPermission();
@@ -336,10 +558,13 @@ export default function RemindersScreen() {
             }
           : { kind: 'info', text: 'Horários salvos. Os lembretes já valem a partir de hoje.' }
       );
-    } catch {
+    } catch (e) {
       setStatus({
         kind: 'error',
-        text: 'Não foi possível salvar agora. Verifique sua internet e tente de novo.',
+        text:
+          e instanceof TreatmentChangedError
+            ? e.message
+            : 'Não foi possível salvar agora. Verifique sua internet e tente de novo.',
       });
     } finally {
       setSaving(false);
@@ -362,8 +587,8 @@ export default function RemindersScreen() {
                 {child ? `Rotina de ${child.first_name}` : 'Rotina da criança'}
               </AppText>
               <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
-                Dela saem os horários do colírio de várias doses e da lente de contato, sempre
-                entre o acordar e o dormir.
+                Dela saem os horários do colírio de várias doses, sempre entre o acordar e o
+                dormir, e o padrão da lente de contato.
               </AppText>
               <AppText variant="meta" color={colors.ink3} style={styles.commonLabel}>
                 Acorda às
@@ -426,14 +651,96 @@ export default function RemindersScreen() {
             </Card>
           </View>
 
+          {lensTreatments.map((t) => {
+            const view = lensView(t);
+            const own = lensStatus[t.id];
+            const busy = lensSaving === t.id;
+            const rule = t.instructions?.trim();
+            return (
+              <View key={t.id} style={styles.cardWrap}>
+                <Card>
+                  <AppText variant="cardTitle">{treatmentLabel(t)}</AppText>
+                  <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
+                    {rule ? `Regra da Dra.: ${rule}` : 'Você escolhe a hora de colocar e a de tirar.'}
+                  </AppText>
+                  {t.max_wear_hours ? (
+                    <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
+                      Limite da Dra.: no máximo {t.max_wear_hours} h de uso por dia.
+                    </AppText>
+                  ) : null}
+                  <AppText variant="meta" color={colors.ink3} style={styles.commonLabel}>
+                    Colocar às
+                  </AppText>
+                  <TimePicker
+                    value={view.on}
+                    commonTimes={WAKE_TIMES}
+                    onSelect={(time) => editLens(t.id, { on: time })}
+                    onStep={(delta) => editLens(t.id, { on: fromTotal(toTotal(view.on) + delta) })}
+                  />
+                  <AppText variant="meta" color={colors.ink3} style={styles.commonLabel}>
+                    Tirar às
+                  </AppText>
+                  <TimePicker
+                    value={view.off}
+                    commonTimes={LENS_OFF_TIMES}
+                    onSelect={(time) => editLens(t.id, { off: time })}
+                    onStep={(delta) => editLens(t.id, { off: fromTotal(toTotal(view.off) + delta) })}
+                  />
+                  {view.warning ? (
+                    <View
+                      style={[styles.banner, styles.routineBanner, styles.bannerError]}
+                      accessibilityLiveRegion="polite"
+                    >
+                      <AppText variant="meta" color={colors.ink}>
+                        {view.warning}
+                      </AppText>
+                    </View>
+                  ) : null}
+                  {own ? (
+                    <View
+                      style={[
+                        styles.banner,
+                        styles.routineBanner,
+                        own.kind === 'info' ? styles.bannerInfo : styles.bannerError,
+                      ]}
+                      accessibilityLiveRegion="polite"
+                    >
+                      <AppText variant="meta" color={own.kind === 'info' ? colors.purple800 : colors.ink}>
+                        {own.text}
+                      </AppText>
+                    </View>
+                  ) : null}
+                  <Button
+                    label={busy ? 'Salvando...' : 'Salvar horários da lente'}
+                    onPress={() => {
+                      void handleSaveLens(t);
+                    }}
+                    loading={busy}
+                    disabled={view.warning === LENS_ORDER_WARNING}
+                    style={styles.lensSave}
+                  />
+                  {view.hasPref || lensEdits[t.id] ? (
+                    <Button
+                      label="Usar a rotina"
+                      variant="ghost"
+                      onPress={() => {
+                        void handleResetLens(t);
+                      }}
+                      disabled={busy}
+                      style={styles.save}
+                    />
+                  ) : null}
+                </Card>
+              </View>
+            );
+          })}
+
           {routineTreatments.map((t) => (
             <View key={t.id} style={styles.cardWrap}>
               <Card>
                 <AppText variant="cardTitle">{treatmentLabel(t)}</AppText>
                 <AppText variant="meta" color={colors.ink2} style={styles.editorSub}>
-                  {t.type === 'lente_contato' && dosesPerDay(t) === 1
-                    ? 'Colocar ao acordar e tirar antes de dormir, pela rotina.'
-                    : `${dosesPerDay(t)} vezes por dia, espalhadas entre o acordar e o dormir.`}
+                  {`${dosesPerDay(t)} vezes por dia, espalhadas entre o acordar e o dormir.`}
                 </AppText>
                 <View style={styles.orthokOff}>
                   <AppText variant="meta" color={colors.ink2}>
@@ -466,7 +773,7 @@ export default function RemindersScreen() {
               <TreatmentTimeEditor
                 treatment={treatment}
                 value={timeFor(treatment.id)}
-                routine={routineInvalid ? routine : editingRoutine}
+                routine={shownRoutine}
                 onSelect={(t) => setTimeFor(treatment.id, t)}
                 onStep={(delta) => adjustBy(treatment.id, delta)}
               />
@@ -703,6 +1010,9 @@ const styles = StyleSheet.create({
   },
   save: {
     marginTop: spacing.sm,
+  },
+  lensSave: {
+    marginTop: spacing.md,
   },
   footNote: {
     textAlign: 'center',

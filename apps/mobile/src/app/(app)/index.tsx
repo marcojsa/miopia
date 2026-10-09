@@ -14,6 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   formatReminderTime,
+  formatTimePtBR,
+  isDailyLens,
+  lensTimesFor,
   reminderTimeLabel,
   scheduledDoses,
   type DoseSlot,
@@ -83,7 +86,7 @@ function displayNameOf(metadata: Record<string, unknown> | undefined): string {
 
 // Subtítulo do chip do filho, curto para caber no chip: com 1 ou 2 tratamentos,
 // o nome de cada um + o horário do lembrete deste aparelho ou quantas vezes ao
-// dia (ex.: "atropina 20h30 · Lubrificante 4x"); com mais, só a contagem.
+// dia (ex.: "atropina 20h30 · Lubrificante 4x · lente 7h–15h"); com mais, só a contagem.
 function chipSubtitle(
   treatments: Treatment[],
   prefs: ReminderPref[],
@@ -95,6 +98,10 @@ function chipSubtitle(
   if (treatments.length > 2) return `${treatments.length} cuidados hoje`;
   return treatments
     .map((t) => {
+      if (isDailyLens(t)) {
+        const lens = lensTimesFor(t, prefs, routine);
+        return `lente ${formatTimePtBR(lens.on)}–${formatTimePtBR(lens.off)}`;
+      }
       if (t.type === 'lente_contato') return 'lente de contato';
       const name =
         t.type === 'atropina'

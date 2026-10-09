@@ -18,7 +18,7 @@ export function useTreatments(childId: string | undefined) {
       const { data, error } = await supabase
         .from('treatments')
         .select(
-          'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
+          'id, child_id, type, name, times_per_day, max_wear_hours, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
         )
         .eq('child_id', childId!)
         .order('created_at', { ascending: false });
@@ -44,6 +44,7 @@ export function useCreateTreatment(childId: string) {
         type: input.type,
         name: input.name?.trim() || null,
         times_per_day: input.times_per_day ?? 1,
+        max_wear_hours: input.max_wear_hours ?? null,
         instructions: input.instructions?.trim() || null,
         suggested_time: input.suggested_time || null,
         days_of_week: input.days_of_week ?? [0, 1, 2, 3, 4, 5, 6],
@@ -56,7 +57,7 @@ export function useCreateTreatment(childId: string) {
         .from('treatments')
         .insert(payload)
         .select(
-          'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
+          'id, child_id, type, name, times_per_day, max_wear_hours, instructions, suggested_time, days_of_week, starts_on, ends_on, active, created_by, created_at',
         )
         .single();
       if (error) throw error;

@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { AdherenceLog, Child, ChildScheduleInput, ReminderSchedule, Treatment } from '../../types/domain.ts';
-import { buildFamilySchedule } from '../../components/familia/familiaHelpers.ts';
+import type { AdherenceLog, Child, ChildScheduleInput, ReminderPref, ReminderSchedule, Treatment } from '../../types/domain.ts';
+import { buildFamilySchedule, regimeSummary, scheduledDoses } from '../../components/familia/familiaHelpers.ts';
 import { upsertLocal } from '../adherenceCache.ts';
 import {
   IOS_SCHEDULE_LIMIT,
@@ -113,6 +113,7 @@ const BASE_T: Treatment = {
   type: 'atropina',
   name: null,
   times_per_day: 1,
+  max_wear_hours: null,
   instructions: null,
   suggested_time: '20:30:00',
   days_of_week: [],
@@ -166,6 +167,55 @@ test('lente de contato: colocar ao acordar (só lembra) e tirar ao dormir (regis
   assert.equal(off?.title, 'Tirar a lente — Pedro');
   assert.equal(off?.withCheckinActions, true);
   assert.equal(`${off?.hour}:${off?.minute}`, '21:0');
+});
+
+const LENTE_8H: Treatment = {
+  ...BASE_T,
+  id: 'len',
+  child_id: 'pedro',
+  type: 'lente_contato',
+  suggested_time: null,
+  max_wear_hours: 8,
+};
+const lensPref = (reminder_time: string, remove_time: string | null, enabled = true): ReminderPref => ({
+  guardian_user_id: 'u1',
+  treatment_id: 'len',
+  reminder_time,
+  remove_time,
+  enabled,
+});
+const lensPlan = (prefs: ReminderPref[]): string[] => {
+  const plan = buildDesired(
+    buildFamilySchedule([CHILD('pedro', 'Pedro')], [LENTE_8H], prefs, new Set()),
+    '2026-10-05'
+  );
+  // Os ids continuam os mesmos (lente_on / lente_off), com ou sem preferência.
+  assert.deepEqual([...plan.keys()], ['pedro:lente_on:len:1', 'pedro:lente_off:len:1']);
+  return [...plan.values()].map((d) => `${d.type} ${d.hour}:${d.minute}`);
+};
+
+test('lente com limite de 8 h e sem preferência: tirar 8 h depois de colocar', () => {
+  assert.deepEqual(lensPlan([]), ['lente_on 7:0', 'lente_off 15:0']);
+});
+
+test('lente com preferência: colocar no reminder_time e tirar no remove_time', () => {
+  assert.deepEqual(lensPlan([lensPref('08:30:00', '16:00:00')]), ['lente_on 8:30', 'lente_off 16:0']);
+});
+
+test('lente com preferência só de colocar: tirar segue o limite a partir dela', () => {
+  assert.deepEqual(lensPlan([lensPref('09:00:00', null)]), ['lente_on 9:0', 'lente_off 17:0']);
+});
+
+test('lente com preferência desligada volta ao padrão da rotina', () => {
+  assert.deepEqual(lensPlan([lensPref('08:30:00', '16:00:00', false)]), ['lente_on 7:0', 'lente_off 15:0']);
+});
+
+test('lente: o cartão da Hoje e o resumo da Família usam os mesmos horários do lembrete', () => {
+  const prefs = [lensPref('08:30:00', '16:00:00')];
+  assert.deepEqual(scheduledDoses(LENTE_8H, prefs), [{ dose: 1, total: 1, time: { hour: 16, minute: 0 } }]);
+  assert.deepEqual(scheduledDoses(LENTE_8H, []), [{ dose: 1, total: 1, time: { hour: 15, minute: 0 } }]);
+  assert.equal(regimeSummary(LENTE_8H, []), 'Lente de contato · 7h–15h');
+  assert.equal(regimeSummary(LENTE_8H, prefs), 'Lente de contato · 8h30–16h');
 });
 
 test('ids por dose: parse e compatibilidade com os antigos', () => {

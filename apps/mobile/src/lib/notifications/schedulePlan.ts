@@ -104,7 +104,7 @@ export function doseCopy(d: DoseReminderInput, firstName: string): { title: stri
         title: `Colocar a lente — ${firstName}`,
         body: d.withCheckinActions
           ? 'Hora de colocar a lente de contato. Toque em Feito quando colocar.'
-          : 'Bom dia! Hora de colocar a lente de contato.',
+          : 'Hora de colocar a lente de contato.',
       };
     case 'lente_dose':
       return {

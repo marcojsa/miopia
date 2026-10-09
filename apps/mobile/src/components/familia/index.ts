@@ -7,6 +7,8 @@ export {
   regimeSummary,
   reminderTimeLabel,
   scheduledDoses,
+  isDailyLens,
+  lensTimesFor,
   treatmentLabel,
   type DoseSlot,
   formatTimePtBR,

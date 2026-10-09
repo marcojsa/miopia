@@ -10,16 +10,31 @@ import { queryKeys } from './keys';
 const MINUTE = 60 * 1000;
 
 const TREATMENT_COLUMNS =
-  'id, child_id, type, name, times_per_day, instructions, suggested_time, days_of_week, starts_on, ends_on, active';
+  'id, child_id, type, name, times_per_day, max_wear_hours, instructions, suggested_time, days_of_week, starts_on, ends_on, active';
+
+export interface UseTreatmentsOptions {
+  /**
+   * Busca de novo ao montar e ao voltar ao app, mesmo com cache novo. Para telas
+   * que GRAVAM pelo id do tratamento (horários dos lembretes): depois de uma troca
+   * de regime, o cache ainda teria o tratamento encerrado.
+   */
+  alwaysFresh?: boolean;
+}
 
 /**
  * Tratamentos ativos — de um filho (childId) ou da família inteira (sem arg).
  * É a fonte para o scheduler de lembretes e para os cards de tarefa da Hoje.
  */
-export function useTreatments(childId?: string): UseQueryResult<Treatment[]> {
+export function useTreatments(
+  childId?: string,
+  options: UseTreatmentsOptions = {}
+): UseQueryResult<Treatment[]> {
   return useQuery({
     queryKey: queryKeys.treatments(childId),
     staleTime: 15 * MINUTE,
+    ...(options.alwaysFresh
+      ? { refetchOnMount: 'always' as const, refetchOnWindowFocus: 'always' as const }
+      : {}),
     queryFn: async (): Promise<Treatment[]> => {
       let query = supabase
         .from('treatments')

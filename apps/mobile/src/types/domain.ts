@@ -39,6 +39,7 @@ export type Treatment = Pick<
   | 'type'
   | 'name'
   | 'times_per_day'
+  | 'max_wear_hours'
   | 'instructions'
   | 'suggested_time'
   | 'days_of_week'
@@ -47,10 +48,11 @@ export type Treatment = Pick<
   | 'active'
 >;
 
-// reminder_time: 'HH:MM:SS' — preferência do responsável (separada da prescrição)
+// reminder_time: 'HH:MM:SS' — preferência do responsável (separada da prescrição).
+// Na lente de contato, reminder_time é a hora de COLOCAR e remove_time a de TIRAR.
 export type ReminderPref = Pick<
   Tables['reminder_prefs']['Row'],
-  'guardian_user_id' | 'treatment_id' | 'reminder_time' | 'enabled'
+  'guardian_user_id' | 'treatment_id' | 'reminder_time' | 'remove_time' | 'enabled'
 >;
 
 // log_date: data lógica da "noite" (corte 04h — ver lib/date.ts); dose: 1..times_per_day
@@ -124,7 +126,7 @@ export interface ChildScheduleInput {
     offTime: ReminderTime;
     schedule: ReminderSchedule;
   };
-  /** Colírio (cada dose) e lente de contato: horários já calculados da rotina ou do lembrete. */
+  /** Colírio (cada dose) e lente de contato: horários já calculados (rotina, lembrete ou colocar/tirar da lente). */
   doses?: DoseReminderInput[];
 }
 

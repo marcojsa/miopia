@@ -1,5 +1,6 @@
 // Preferências de horário de lembrete do responsável logado (RLS escopa).
-// reminder_time: 'HH:MM:SS'. Fonte (junto com useTreatments) do
+// reminder_time: 'HH:MM:SS' (na lente, hora de colocar); remove_time: hora de
+// tirar a lente (null nos outros tratamentos). Fonte (junto com useTreatments) do
 // ChildScheduleInput passado a syncSchedulesForFamily().
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
@@ -16,7 +17,7 @@ export function useReminderPrefs(): UseQueryResult<ReminderPref[]> {
     queryFn: async (): Promise<ReminderPref[]> => {
       const { data, error } = await supabase
         .from('reminder_prefs')
-        .select('guardian_user_id, treatment_id, reminder_time, enabled');
+        .select('guardian_user_id, treatment_id, reminder_time, remove_time, enabled');
       if (error) throw error;
       return data ?? [];
     },

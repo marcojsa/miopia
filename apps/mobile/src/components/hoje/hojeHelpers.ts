@@ -99,7 +99,7 @@ export function taskInstruction(treatment: Treatment): string {
     case 'colirio':
       return 'Pingar conforme a orientação da médica';
     case 'lente_contato':
-      return 'Colocar ao acordar e tirar antes de dormir';
+      return 'Colocar e tirar nos horários combinados';
     case 'oculos_lentes':
     default:
       return 'Cuidado da noite antes de dormir';

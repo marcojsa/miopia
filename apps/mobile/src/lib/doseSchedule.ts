@@ -5,8 +5,10 @@
 // os lembretes entre o acordar e o dormir — a primeira ao acordar, a última ao
 // dormir, as do meio a intervalos iguais, em múltiplos de 5 minutos. Nunca
 // durante o sono. Tratamento de 1 vez por dia continua com o horário do
-// lembrete (reminder_prefs / suggested_time), exceto a lente de contato, que
-// sempre segue a rotina (colocar ao acordar, tirar antes de dormir).
+// lembrete (reminder_prefs / suggested_time). A lente de contato tem horário
+// próprio (lensTimes): o responsável escolhe a hora de colocar e a de tirar; sem
+// escolha, vale a rotina (colocar ao acordar, tirar antes de dormir), respeitando
+// o limite de horas de uso que a Dra. definir.
 import type { Treatment } from '../types/domain.ts';
 
 /** Sem linha em child_routines, o app usa 07:00–21:00 (default do banco). */
@@ -111,7 +113,67 @@ export function outsideRoutine(time: string, routine: Routine): 'antes' | 'depoi
   return null;
 }
 
-/** O horário das doses deste tratamento vem da rotina (e não do reminder_prefs)? */
+export interface LensTimesInput {
+  /** Rotina da criança, 'HH:MM'. */
+  wake: string;
+  bed: string;
+  /** Limite de horas de uso por dia definido pela Dra. (treatments.max_wear_hours). */
+  maxHours?: number | null;
+  /** Hora de colocar escolhida pelo responsável (reminder_prefs.reminder_time). */
+  prefOn?: string | null;
+  /** Hora de tirar escolhida pelo responsável (reminder_prefs.remove_time). */
+  prefOff?: string | null;
+}
+
+export interface LensTimes {
+  /** Hora de colocar, 'HH:MM'. */
+  on: string;
+  /** Hora de tirar, 'HH:MM'. */
+  off: string;
+  /** Aviso (pt-BR) para a família, ou null. */
+  warning: string | null;
+}
+
+/** A hora de tirar não vem depois da de colocar (única combinação que não dá para salvar). */
+export const LENS_ORDER_WARNING = 'A hora de tirar precisa ser depois da de colocar.';
+
+/**
+ * Horários da lente de contato de 1 vez por dia.
+ * - colocar: a escolha do responsável, ou a hora de acordar;
+ * - tirar: a escolha do responsável; sem ela, a hora de dormir ou, havendo limite,
+ *   colocar + limite (o que vier antes), em múltiplo de 5 minutos sem passar do limite.
+ * Aviso, nesta ordem: tirar não é depois de colocar; passa do limite da Dra.;
+ * fora da rotina (antes de acordar ou depois de dormir).
+ * Rotina inválida cai no padrão 07:00–21:00.
+ */
+export function lensTimes({ wake, bed, maxHours, prefOn, prefOff }: LensTimesInput): LensTimes {
+  let w = toMinutes(wake);
+  let b = toMinutes(bed);
+  if (w === null || b === null || b <= w) {
+    w = toMinutes(DEFAULT_WAKE) as number;
+    b = toMinutes(DEFAULT_BED) as number;
+  }
+  const hours = typeof maxHours === 'number' && maxHours >= 1 ? Math.floor(maxHours) : null;
+  const limit = hours === null ? null : hours * 60;
+
+  const on = toMinutes(prefOn) ?? w;
+  const off =
+    toMinutes(prefOff) ?? (limit === null ? b : Math.min(b, Math.floor((on + limit) / STEP) * STEP));
+
+  let warning: string | null = null;
+  if (off <= on) warning = LENS_ORDER_WARNING;
+  else if (limit !== null && off - on > limit) {
+    warning = `Passa do limite de ${hours} h de uso definido pela Dra.`;
+  } else if (on < w) warning = 'A hora de colocar fica antes da hora de acordar da rotina.';
+  else if (off > b) warning = 'A hora de tirar fica depois da hora de dormir da rotina.';
+
+  return { on: fromMinutes(on), off: fromMinutes(off), warning };
+}
+
+/**
+ * O tratamento NÃO usa o editor de horário único (reminder_prefs.reminder_time):
+ * colírio de várias doses (horários da rotina) e lente de contato (lensTimes).
+ */
 export function usesRoutine(treatment: Pick<Treatment, 'type' | 'times_per_day'>): boolean {
   return treatment.type === 'lente_contato' || treatment.times_per_day > 1;
 }

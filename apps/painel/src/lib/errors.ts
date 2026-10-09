@@ -34,6 +34,9 @@ const CONSTRAINTS: Record<string, string> = {
   treatments_times_per_day_faixa: 'Vezes por dia precisa ficar entre 1 e 6.',
   treatments_times_per_day_so_colirio_e_lente:
     'Atropina, ortho-k e óculos são registrados com 1 vez por dia. Só colírio aceita mais vezes.',
+  treatments_max_wear_hours_faixa: 'O máximo de horas de uso por dia precisa ficar entre 1 e 24.',
+  treatments_max_wear_hours_so_lente:
+    'Só a lente de contato aceita máximo de horas de uso por dia.',
   contents_title_check: 'Informe um título de até 120 caracteres.',
   contents_body_check: 'O texto pode ter no máximo 4.000 caracteres.',
   contents_youtube_url_check:

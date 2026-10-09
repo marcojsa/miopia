@@ -8,6 +8,7 @@ import {
   TREATMENT_TYPE_LABELS,
   WEEKDAY_LABELS,
   fmtDate,
+  fmtMaxWearHours,
   fmtTimesPerDay,
   todayISO,
 } from '@/lib/labels';
@@ -30,6 +31,8 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
   const [type, setType] = useState<TreatmentType>('atropina');
   const [name, setName] = useState('');
   const [timesPerDay, setTimesPerDay] = useState(1);
+  // Texto do campo (vazio = sem limite de horas de uso).
+  const [maxWearHours, setMaxWearHours] = useState('');
   const [instructions, setInstructions] = useState('');
   const [suggestedTime, setSuggestedTime] = useState('');
   const [days, setDays] = useState<number[]>(ALL_DAYS);
@@ -82,11 +85,19 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
       setFormError('Informe o nome do colírio.');
       return;
     }
+    // Só dígitos ("1e1", "8,5" e "-3" não passam), depois a faixa de 1 a 24.
+    const maxWearText = isLente ? maxWearHours.trim() : '';
+    const maxWear = maxWearText ? Number(maxWearText) : null;
+    if (maxWear !== null && (!/^\d{1,2}$/.test(maxWearText) || maxWear < 1 || maxWear > 24)) {
+      setFormError('O máximo de horas de uso por dia precisa ser um número inteiro de 1 a 24.');
+      return;
+    }
     try {
       await createTreatment.mutateAsync({
         type,
         name: isColirio ? name : null,
         times_per_day: isColirio ? timesPerDay : 1,
+        max_wear_hours: maxWear,
         instructions,
         // <input type="time"> dá 'HH:MM'; o banco aceita time, normalizamos vazio→null.
         suggested_time: timesFromRoutine ? null : suggestedTime || null,
@@ -96,6 +107,7 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
       });
       setName('');
       setTimesPerDay(1);
+      setMaxWearHours('');
       setInstructions('');
       setSuggestedTime('');
       setDays(ALL_DAYS);
@@ -146,7 +158,11 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
                   {TREATMENT_TYPE_LABELS[t.type]}
                   {t.name ? ` — ${t.name}` : ''}
                 </td>
-                <td>{fmtTimesPerDay(t.times_per_day)}</td>
+                <td>
+                  {t.type === 'lente_contato' && t.max_wear_hours
+                    ? fmtMaxWearHours(t.max_wear_hours)
+                    : fmtTimesPerDay(t.times_per_day)}
+                </td>
                 <td>{t.instructions ?? '—'}</td>
                 <td>{t.suggested_time ? t.suggested_time.slice(0, 5) : '—'}</td>
                 <td>{t.days_of_week.map((d) => WEEKDAY_LABELS[d]).join(', ')}</td>
@@ -177,7 +193,8 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
       {endError ? <p className="error">{endError}</p> : null}
 
       <h4>Novo tratamento</h4>
-      <form onSubmit={handleCreate}>
+      {/* Editar qualquer campo apaga o erro anterior do formulário. */}
+      <form onSubmit={handleCreate} onChange={() => setFormError(null)}>
         <label>
           Tipo
           <br />
@@ -232,10 +249,32 @@ export function TreatmentsSection({ childId, birthDate }: { childId: string; bir
             onChange={(e) => setInstructions(e.target.value)}
           />
         </label>
+        {isLente ? (
+          <>
+            <label>
+              Máximo de horas de uso por dia
+              <br />
+              {/* type="text": a validação (inteiro de 1 a 24) é a do painel, em pt-BR,
+                  e não o balão do navegador. */}
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={2}
+                placeholder="sem limite"
+                value={maxWearHours}
+                onChange={(e) => setMaxWearHours(e.target.value)}
+              />
+            </label>
+            <p className="muted">
+              O app avisa a família se os horários escolhidos passarem disso.
+            </p>
+          </>
+        ) : null}
         {timesFromRoutine ? (
           <p className="muted">
-            Os horários são distribuídos pelo app entre a hora de acordar e a de dormir que a
-            família informa.
+            {isLente
+              ? 'A família escolhe a hora de colocar e a de tirar no app. Sem escolha, vale a hora de acordar e a de dormir que ela informa.'
+              : 'Os horários são distribuídos pelo app entre a hora de acordar e a de dormir que a família informa.'}
           </p>
         ) : (
           <label>

@@ -11,13 +11,15 @@
 --                       e NÃO enxerga preferências pessoais de lembrete
 --   * doses e rotina  → colírio várias vezes ao dia (dose), rotina da criança
 --                       (child_routines) e troca de regime por dose
+--   * lente           → limite de horas de uso (max_wear_hours) e horário de
+--                       tirar escolhido pela família (reminder_prefs.remove_time)
 --
 -- Pré-requisito: 00-test-helpers.sql (basejump/supabase_test_helpers
 -- vendorizado) roda antes — o pg_prove ordena os arquivos por nome.
 -- Tudo dentro de uma transação com rollback: o banco fica intacto.
 -- ============================================================
 begin;
-select plan(103);
+select plan(115);
 
 -- ------------------------------------------------------------
 -- O banco de dev chega SEEDADO (`supabase db reset` roda o seed.sql) e as
@@ -578,6 +580,99 @@ select throws_ok(
          tests.get_supabase_uid('mae_b')),
   '23514', null,
   'dose 4 pelo regime encerrado: validada DEPOIS do redirecionamento (novo só tem 2)');
+
+-- ------------------------------------------------------------
+-- LENTE COM HORÁRIO PRÓPRIO E LIMITE DE HORAS DE USO
+--   tratamento bbbbbbbb-...-06 = lente da criança B, no máximo 8 horas
+--   tratamento bbbbbbbb-...-07 = lente nova (troca de regime), no máximo 10 horas
+-- ------------------------------------------------------------
+reset role;
+select lives_ok(
+  $q$ insert into public.treatments (id, child_id, type, instructions, max_wear_hours) values
+        ('bbbbbbbb-0000-4000-a000-000000000006', 'bbbbbbbb-0000-4000-a000-000000000002',
+         'lente_contato', 'no máximo 8 horas', 8) $q$,
+  'lente de contato aceita o limite de horas de uso (max_wear_hours)');
+select throws_ok(
+  $q$ insert into public.treatments (child_id, type, max_wear_hours)
+      values ('bbbbbbbb-0000-4000-a000-000000000002', 'atropina', 8) $q$,
+  '23514', null,
+  'max_wear_hours em atropina é RECUSADO (só lente de contato)');
+select throws_ok(
+  $q$ update public.treatments set max_wear_hours = 0
+      where id = 'bbbbbbbb-0000-4000-a000-000000000006' $q$,
+  '23514', null,
+  'max_wear_hours abaixo de 1 é recusado');
+select throws_ok(
+  $q$ update public.treatments set max_wear_hours = 25
+      where id = 'bbbbbbbb-0000-4000-a000-000000000006' $q$,
+  '23514', null,
+  'max_wear_hours acima de 24 é recusado');
+
+select tests.authenticate_as('mae_b');
+select lives_ok(
+  format($q$ insert into public.reminder_prefs (guardian_user_id, treatment_id, reminder_time, remove_time)
+             values ('%s', 'bbbbbbbb-0000-4000-a000-000000000006', '07:30', '15:00') $q$,
+         tests.get_supabase_uid('mae_b')),
+  'responsável grava a hora de colocar e a de tirar (remove_time) na própria preferência');
+select results_eq(
+  $q$ select remove_time::text from public.reminder_prefs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000006' $q$,
+  array['15:00:00'],
+  'responsável lê o remove_time que gravou');
+
+-- Troca de regime da lente: a preferência (colocar e tirar) vai para a lente nova.
+reset role;
+update public.treatments
+   set active = false, ends_on = (now() at time zone 'America/Sao_Paulo')::date
+ where id = 'bbbbbbbb-0000-4000-a000-000000000006';
+insert into public.treatments (id, child_id, type, instructions, max_wear_hours) values
+  ('bbbbbbbb-0000-4000-a000-000000000007', 'bbbbbbbb-0000-4000-a000-000000000002',
+   'lente_contato', 'no máximo 10 horas', 10);
+select results_eq(
+  $q$ select reminder_time::text || ' ' || remove_time::text from public.reminder_prefs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000007' $q$,
+  array['07:30:00 15:00:00'],
+  'troca de regime da lente: carry_reminder_prefs leva reminder_time e remove_time para a lente nova');
+
+-- Preferência que chega pela lente ENCERRADA (app com cache antigo) vai para a ativa.
+select tests.authenticate_as('mae_b');
+select lives_ok(
+  format($q$ insert into public.reminder_prefs (guardian_user_id, treatment_id, reminder_time, remove_time)
+             values ('%s', 'bbbbbbbb-0000-4000-a000-000000000006', '08:00', '16:00')
+             on conflict (guardian_user_id, treatment_id) do update
+               set reminder_time = excluded.reminder_time, remove_time = excluded.remove_time $q$,
+         tests.get_supabase_uid('mae_b')),
+  'upsert pela lente encerrada, com preferência já existente na ativa, não falha');
+select results_eq(
+  $q$ select reminder_time::text || ' ' || remove_time::text from public.reminder_prefs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000007' $q$,
+  array['08:00:00 16:00:00'],
+  'o upsert foi redirecionado: atualizou a preferência da lente ATIVA');
+select results_eq(
+  $q$ select reminder_time::text || ' ' || remove_time::text from public.reminder_prefs
+      where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000006' $q$,
+  array['07:30:00 15:00:00'],
+  'a preferência da lente encerrada ficou como estava');
+
+reset role;
+delete from public.reminder_prefs where treatment_id = 'bbbbbbbb-0000-4000-a000-000000000007';
+select tests.authenticate_as('mae_b');
+select lives_ok(
+  format($q$ insert into public.reminder_prefs (guardian_user_id, treatment_id, reminder_time, remove_time)
+             values ('%s', 'bbbbbbbb-0000-4000-a000-000000000006', '09:00', '17:00')
+             on conflict (guardian_user_id, treatment_id) do update
+               set reminder_time = excluded.reminder_time, remove_time = excluded.remove_time $q$,
+         tests.get_supabase_uid('mae_b')),
+  'upsert pela lente encerrada, sem preferência na ativa, não falha');
+select results_eq(
+  $q$ select treatment_id::text || ' ' || reminder_time::text || ' ' || remove_time::text
+        from public.reminder_prefs
+       where treatment_id in ('bbbbbbbb-0000-4000-a000-000000000006',
+                              'bbbbbbbb-0000-4000-a000-000000000007')
+       order by treatment_id $q$,
+  array['bbbbbbbb-0000-4000-a000-000000000006 07:30:00 15:00:00',
+        'bbbbbbbb-0000-4000-a000-000000000007 09:00:00 17:00:00'],
+  'a preferência nova nasceu na lente ATIVA; a da encerrada não mudou');
 
 -- ------------------------------------------------------------
 -- T66..T67 — criança arquivada some do app, mas não da clínica

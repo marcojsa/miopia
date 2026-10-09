@@ -20,6 +20,11 @@ export function fmtTimesPerDay(times: number): string {
   return `${times}x ao dia`;
 }
 
+// Lente de contato com limite de horas de uso definido pela médica.
+export function fmtMaxWearHours(hours: number): string {
+  return `até ${hours} h por dia`;
+}
+
 export const CLINICAL_STATUS_LABELS: Record<ClinicalStatus, string> = {
   controle_adequado: 'Controle adequado',
   atencao: 'Atenção',

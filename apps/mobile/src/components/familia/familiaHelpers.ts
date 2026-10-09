@@ -23,8 +23,11 @@ import {
   colirioName,
   doseTimes,
   dosesPerDay,
+  lensTimes,
+  normalizeHM,
   routineFor,
   usesRoutine,
+  type LensTimes,
   type Routine,
 } from '../../lib/doseSchedule.ts';
 
@@ -82,10 +85,36 @@ export function treatmentLabel(treatment: Pick<Treatment, 'type' | 'name'>): str
   return regimeLabel(treatment.type);
 }
 
+/** Lente de contato de 1 vez por dia: tem hora de colocar e hora de tirar. */
+export function isDailyLens(treatment: Pick<Treatment, 'type' | 'times_per_day'>): boolean {
+  return treatment.type === 'lente_contato' && dosesPerDay(treatment) === 1;
+}
+
+/**
+ * Hora de colocar e de tirar a lente: a escolha deste responsável
+ * (reminder_prefs.reminder_time / remove_time), ou a rotina com o limite da Dra.
+ */
+export function lensTimesFor(
+  treatment: Pick<Treatment, 'id' | 'max_wear_hours'>,
+  prefs: ReminderPref[],
+  routine: Routine = DEFAULT_ROUTINE
+): LensTimes {
+  const pref = prefs.find((p) => p.treatment_id === treatment.id && p.enabled);
+  return lensTimes({
+    wake: routine.wake,
+    bed: routine.bed,
+    // Cache antigo (de antes das colunas) vem sem os campos: vale "sem limite / sem escolha".
+    maxHours: treatment.max_wear_hours ?? null,
+    prefOn: normalizeHM(pref?.reminder_time),
+    prefOff: normalizeHM(pref?.remove_time),
+  });
+}
+
 /**
  * Resumo curto do regime ativo para a lista de filhos (ex.: "Atropina ·
- * 20h30"; "Colírio Lubrificante · 4x por dia · 7h, 11h40, 16h20, 21h"), com o
- * horário do lembrete deste responsável (o mesmo do scheduler).
+ * 20h30"; "Colírio Lubrificante · 4x por dia · 7h, 11h40, 16h20, 21h"; "Lente
+ * de contato · 7h–15h"), com o horário do lembrete deste responsável (o mesmo
+ * do scheduler).
  */
 export function regimeSummary(
   treatment: Treatment | undefined,
@@ -97,6 +126,11 @@ export function regimeSummary(
   const n = dosesPerDay(treatment);
   const parts = [label];
   if (n > 1) parts.push(`${n}x por dia`);
+  if (isDailyLens(treatment)) {
+    const lens = lensTimesFor(treatment, prefs, routine);
+    parts.push(`${formatTimePtBR(lens.on)}–${formatTimePtBR(lens.off)}`);
+    return parts.join(' · ');
+  }
   const time = reminderTimeLabel(treatment, prefs, routine);
   if (time) parts.push(time);
   return parts.join(' · ');
@@ -105,16 +139,18 @@ export function regimeSummary(
 /**
  * Horário exibido de um tratamento: o do lembrete que toca neste aparelho
  * (preferência do responsável > sugestão da médica > padrão do tipo). Óculos/lentes
- * não têm lembrete: mostra só a sugestão, se houver. Colírio de várias doses e
- * lente de contato: os horários que saem da rotina da criança.
+ * não têm lembrete: mostra só a sugestão, se houver. Colírio de várias doses: os
+ * horários que saem da rotina da criança. Lente de contato: colocar e tirar
+ * (escolha do responsável, ou a rotina com o limite da Dra.).
  */
 export function reminderTimeLabel(
   treatment: Treatment,
   prefs: ReminderPref[],
   routine: Routine = DEFAULT_ROUTINE
 ): string | null {
-  if (treatment.type === 'lente_contato' && dosesPerDay(treatment) === 1) {
-    return `colocar ${formatTimePtBR(routine.wake)} · tirar ${formatTimePtBR(routine.bed)}`;
+  if (isDailyLens(treatment)) {
+    const lens = lensTimesFor(treatment, prefs, routine);
+    return `colocar ${formatTimePtBR(lens.on)} · tirar ${formatTimePtBR(lens.off)}`;
   }
   if (usesRoutine(treatment)) {
     return doseTimes(routine.wake, routine.bed, dosesPerDay(treatment))
@@ -137,8 +173,8 @@ export interface DoseSlot {
 /**
  * Doses do dia de um tratamento, com o horário de cada uma. Tratamento de 1 vez
  * por dia usa o horário do lembrete; colírio de várias doses usa a rotina; a lente
- * de contato registra 1 vez por dia, na hora de tirar (antes de dormir), a menos
- * que a clínica peça mais vezes.
+ * de contato registra 1 vez por dia, na hora de tirar (lensTimes), a menos que a
+ * clínica peça mais vezes.
  */
 export function scheduledDoses(
   treatment: Treatment,
@@ -146,6 +182,9 @@ export function scheduledDoses(
   routine: Routine = DEFAULT_ROUTINE
 ): DoseSlot[] {
   const total = dosesPerDay(treatment);
+  if (isDailyLens(treatment)) {
+    return [{ dose: 1, total: 1, time: parseHM(lensTimesFor(treatment, prefs, routine).off) }];
+  }
   if (usesRoutine(treatment)) {
     return doseTimes(routine.wake, routine.bed, total).map((t, i) => ({
       dose: i + 1,
@@ -228,7 +267,7 @@ export function fallbackTimeFor(type: TreatmentType): ReminderTime {
  * estado atual (filhos, tratamentos ativos, preferências de horário e o
  * conjunto de filhos pausados). Cada filho contribui no máximo com 1 atropina e
  * 1 ortho-k (colocar à noite + retirar de manhã fixa), um lembrete por dose de
- * cada colírio e colocar/tirar da lente de contato (horários da rotina).
+ * cada colírio e colocar/tirar da lente de contato (lensTimes).
  *
  * `pausedChildIds`: ids dos filhos em pausa de férias — vira remindersPaused
  * true (o scheduler cancela todos os lembretes daquele filho).
@@ -266,13 +305,14 @@ export function buildFamilySchedule(
     const lente = childTreatments.find((t) => t.type === 'lente_contato');
     if (lente) {
       const total = dosesPerDay(lente);
-      const wake = parseHM(routine.wake) ?? { hour: 7, minute: 0 };
-      const bed = parseHM(routine.bed) ?? { hour: 21, minute: 0 };
       const base = { treatmentId: lente.id, total, label: 'Lente de contato', schedule: scheduleOf(lente) };
       if (total === 1) {
         // Colocar só lembra; o registro do dia é na hora de tirar.
-        doses.push({ ...base, type: 'lente_on', dose: 1, time: wake, withCheckinActions: false });
-        doses.push({ ...base, type: 'lente_off', dose: 1, time: bed, withCheckinActions: true });
+        const lens = lensTimesFor(lente, prefs, routine);
+        const on = parseHM(lens.on) ?? { hour: 7, minute: 0 };
+        const off = parseHM(lens.off) ?? { hour: 21, minute: 0 };
+        doses.push({ ...base, type: 'lente_on', dose: 1, time: on, withCheckinActions: false });
+        doses.push({ ...base, type: 'lente_off', dose: 1, time: off, withCheckinActions: true });
       } else {
         scheduledDoses(lente, prefs, routine).forEach((slot) => {
           if (!slot.time) return;

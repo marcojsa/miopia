@@ -559,6 +559,7 @@ export type Database = {
           enabled: boolean
           guardian_user_id: string
           reminder_time: string
+          remove_time: string | null
           treatment_id: string
           updated_at: string
         }
@@ -566,6 +567,7 @@ export type Database = {
           enabled?: boolean
           guardian_user_id: string
           reminder_time: string
+          remove_time?: string | null
           treatment_id: string
           updated_at?: string
         }
@@ -573,6 +575,7 @@ export type Database = {
           enabled?: boolean
           guardian_user_id?: string
           reminder_time?: string
+          remove_time?: string | null
           treatment_id?: string
           updated_at?: string
         }
@@ -620,6 +623,7 @@ export type Database = {
           ends_on: string | null
           id: string
           instructions: string | null
+          max_wear_hours: number | null
           name: string | null
           starts_on: string
           suggested_time: string | null
@@ -635,6 +639,7 @@ export type Database = {
           ends_on?: string | null
           id?: string
           instructions?: string | null
+          max_wear_hours?: number | null
           name?: string | null
           starts_on?: string
           suggested_time?: string | null
@@ -650,6 +655,7 @@ export type Database = {
           ends_on?: string | null
           id?: string
           instructions?: string | null
+          max_wear_hours?: number | null
           name?: string | null
           starts_on?: string
           suggested_time?: string | null
