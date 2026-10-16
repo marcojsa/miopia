@@ -10,7 +10,11 @@ const URL = 'http://127.0.0.1:54321'
 const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const MAILPIT = 'http://127.0.0.1:54324'
 const email = `convite.teste.${process.pid}@example.com`
-const sql = q => execSync(`docker exec -i supabase_db_miopia-app psql -U postgres -d postgres -At -c "${q}"`).toString().trim()
+// Banco local (Docker no PC) ou remoto (LUMI_SQL_REMOTO=1: Supabase de desenvolvimento no servidor, via scripts/dev-remoto.sh).
+const SQL_CMD = process.env.LUMI_SQL_REMOTO
+  ? 'bash scripts/dev-remoto.sh sql'
+  : 'docker exec -i supabase_db_miopia-app psql -U postgres -d postgres -At -v ON_ERROR_STOP=1'
+const sql = q => execSync(SQL_CMD, { input: q + ';\n' }).toString().trim()
 const ok = (n, c, x = '') => console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? ' :: ' + x : ''}`)
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const opts = { auth: { persistSession: false, autoRefreshToken: false } }

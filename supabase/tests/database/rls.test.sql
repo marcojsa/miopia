@@ -546,7 +546,7 @@ select 'bbbbbbbb-0000-4000-a000-000000000004', 'bbbbbbbb-0000-4000-a000-00000000
        d, 'feito', tests.get_supabase_uid('mae_b')
   from generate_series(1, 3) as d;
 update public.treatments
-   set active = false, ends_on = (now() at time zone 'America/Sao_Paulo')::date
+   set active = false, ends_on = greatest(starts_on, (now() at time zone 'America/Sao_Paulo')::date)
  where id = 'bbbbbbbb-0000-4000-a000-000000000004';
 insert into public.treatments (id, child_id, type, name, times_per_day, starts_on) values
   ('bbbbbbbb-0000-4000-a000-000000000005', 'bbbbbbbb-0000-4000-a000-000000000002',
@@ -623,7 +623,7 @@ select results_eq(
 -- Troca de regime da lente: a preferência (colocar e tirar) vai para a lente nova.
 reset role;
 update public.treatments
-   set active = false, ends_on = (now() at time zone 'America/Sao_Paulo')::date
+   set active = false, ends_on = greatest(starts_on, (now() at time zone 'America/Sao_Paulo')::date)
  where id = 'bbbbbbbb-0000-4000-a000-000000000006';
 insert into public.treatments (id, child_id, type, instructions, max_wear_hours) values
   ('bbbbbbbb-0000-4000-a000-000000000007', 'bbbbbbbb-0000-4000-a000-000000000002',
