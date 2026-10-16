@@ -9,6 +9,8 @@ export interface InviteInput {
   display_name: string;
   relationship?: string;
   is_primary?: boolean;
+  /** 'senha': cria o acesso com senha provisória, sem e-mail. Padrão: 'email'. */
+  modo?: 'email' | 'senha';
 }
 
 export interface InviteResult {
@@ -19,11 +21,15 @@ export interface InviteResult {
   expires_at: string;
   /** true quando era um convite pendente e o e-mail foi apenas reenviado. */
   resent?: boolean;
+  modo?: 'email' | 'senha';
+  /** Só no modo 'senha': mostrada uma única vez para a equipe entregar à família. */
+  senha_provisoria?: string;
 }
 
 const INVITE_ERRORS: Record<string, string> = {
   email_already_registered:
-    'Este e-mail já tem conta no app. Se a pessoa não consegue entrar, peça que use Entrar › Esqueci minha senha no app.',
+    'Este e-mail já tem conta no app. Use outro e-mail ou, se for a mesma pessoa, peça ao Marco para gerar uma senha nova.',
+  user_create_failed: 'Não foi possível criar o acesso. Tente novamente.',
   primary_already_set:
     'Esta família já tem um responsável principal. Desmarque "Responsável principal" e envie de novo.',
   family_not_found: 'Família não encontrada.',
@@ -94,6 +100,7 @@ export function useInviteFamily() {
             display_name: displayName,
             relationship: input.relationship?.trim() || undefined,
             is_primary: input.is_primary ?? false,
+            modo: input.modo ?? 'email',
           },
         },
       );

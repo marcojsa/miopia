@@ -35,6 +35,9 @@ export function Layout() {
               {staff.display_name}
               <small>{STAFF_ROLE_LABELS[staff.role]}</small>
             </span>
+            <NavLink to="/minha-senha" className="minha-senha">
+              Minha senha
+            </NavLink>
             <button type="button" className="ghost" onClick={() => void handleSignOut()}>
               Sair
             </button>

@@ -12,6 +12,7 @@ import { FamilyDetailPage } from '@/pages/FamilyDetailPage';
 import { NewMeasurementPage } from '@/pages/NewMeasurementPage';
 import { InvitesPage } from '@/pages/InvitesPage';
 import { MuralPage } from '@/pages/MuralPage';
+import { MinhaSenhaPage } from '@/pages/MinhaSenhaPage';
 
 export function App() {
   return (
@@ -38,6 +39,7 @@ export function App() {
         />
         <Route path="/convites" element={<InvitesPage />} />
         <Route path="/mural" element={<MuralPage />} />
+        <Route path="/minha-senha" element={<MinhaSenhaPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/familias" replace />} />

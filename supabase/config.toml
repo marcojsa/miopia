@@ -433,6 +433,11 @@ verify_jwt = true
 [functions.delete-account]
 verify_jwt = true
 
+# Busca de pacientes no Klingo (só equipe). Segredo: KLINGO_APP_TOKEN
+# (local: supabase/functions/.env, fora do git; nuvem: supabase secrets set).
+[functions.klingo-paciente]
+verify_jwt = true
+
 # DESLIGADO (12/06/2026): no Windows exigiria expor o daemon do Docker em
 # tcp://localhost:2375 (inseguro) e o app não usa analytics local.
 [analytics]

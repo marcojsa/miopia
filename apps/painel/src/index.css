@@ -570,3 +570,300 @@ ol.mural li.editando {
     justify-content: flex-start;
   }
 }
+
+/* ---------- Avisos (não são erro) ---------- */
+
+.aviso {
+  color: #5a4200;
+  background: #fff7e0;
+  border: 1px solid #ecd28c;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  margin: 0.7rem 0;
+  font-weight: 500;
+}
+
+.aviso ul {
+  margin: 0.3rem 0;
+  padding-left: 1.3rem;
+}
+
+.sucesso {
+  color: #1d4d31;
+  background: #eaf6ee;
+  border: 1px solid #b9dfc6;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  margin: 0.9rem 0 0.2rem;
+}
+
+/* Botão principal do passo, mesmo quando é type="button" */
+button.primario {
+  color: var(--branco);
+  background: var(--roxo);
+  border-color: var(--roxo);
+}
+
+button.primario:hover:not(:disabled) {
+  color: var(--branco);
+  background: var(--roxo-700);
+  border-color: var(--roxo-700);
+}
+
+/* ---------- Nova criança: busca no Klingo ---------- */
+
+.klingo-chamada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.8rem;
+}
+
+.klingo {
+  background: var(--roxo-50);
+  border: 1px solid var(--roxo-200);
+  border-radius: var(--raio);
+  padding: 0.9rem 1.1rem 1rem;
+  margin: 0.6rem 0 1rem;
+}
+
+.klingo-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.klingo-topo button {
+  margin: 0;
+}
+
+.klingo-passo {
+  font-family: Nunito, Inter, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--roxo-900);
+  margin: 0.9rem 0 0.4rem;
+}
+
+.klingo-topo .klingo-passo {
+  margin-top: 0;
+}
+
+.klingo-dias {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.klingo-dias button {
+  margin: 0;
+}
+
+.klingo-dias button[aria-pressed='true'] {
+  color: var(--branco);
+  background: var(--roxo);
+  border-color: var(--roxo);
+}
+
+.klingo-dias button[aria-pressed='true']:hover:not(:disabled) {
+  color: var(--branco);
+  background: var(--roxo-700);
+  border-color: var(--roxo-700);
+}
+
+.klingo-dias label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0 0.4rem;
+}
+
+.klingo-dias label > input[type='date'] {
+  display: inline-block;
+  width: auto;
+  margin-top: 0;
+}
+
+label.klingo-filtro {
+  margin: 0.3rem 0 0.6rem;
+}
+
+.klingo-vazio {
+  font-weight: 600;
+  color: var(--tinta-2);
+  padding: 0.6rem 0;
+}
+
+table.klingo-lista {
+  background: var(--branco);
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  margin: 0.4rem 0 0.2rem;
+}
+
+table.klingo-lista td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+table.klingo-lista td:nth-last-child(2) {
+  min-width: 0;
+}
+
+table.klingo-lista td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sem-cpf {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.sem-cpf::before {
+  content: '⚠ ';
+}
+
+form.klingo-cpf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0 0.6rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--roxo-200);
+}
+
+form.klingo-cpf label {
+  margin: 0.4rem 0 0;
+}
+
+form.klingo-cpf label > input {
+  width: 13rem;
+}
+
+form.klingo-cpf button {
+  margin: 0.4rem 0 0;
+}
+
+.klingo-origem {
+  background: var(--roxo-50);
+  border: 1px solid var(--roxo-200);
+  border-left: 5px solid var(--roxo-500);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin: 0.7rem 0;
+}
+
+.klingo-origem .aviso {
+  margin: 0.4rem 0;
+}
+
+@media (max-width: 720px) {
+  .klingo-dias label {
+    margin-left: 0;
+  }
+}
+
+/* ---------- Registros da família (só exibição, sem cor de semáforo) ---------- */
+.registros-tabela {
+  overflow-x: auto;
+  border: 1px solid var(--linha);
+  border-radius: var(--raio);
+}
+
+.registros-tabela th,
+.registros-tabela td {
+  padding: 0.45rem 0.3rem;
+}
+
+.registros-tabela thead th {
+  font-size: 0.7rem;
+  letter-spacing: 0.01em;
+}
+
+.registros-tabela th[scope='row'] {
+  min-width: 9.5rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tinta);
+  background: var(--branco);
+}
+
+.registros-tabela th[scope='row'] small {
+  display: block;
+  font-weight: 400;
+  color: var(--tinta-3);
+}
+
+.registros-tabela .dia {
+  min-width: 2.35rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.registros-tabela td.vazio {
+  color: var(--tinta-3);
+}
+
+.registros-tabela td.total {
+  white-space: nowrap;
+  color: var(--tinta-2);
+}
+
+.legenda {
+  font-size: 0.85rem;
+}
+
+.registros-motivos ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+}
+
+/* ---------- Acesso criado (senha provisória) ---------- */
+.acesso-criado {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--roxo-50);
+  border: 1px solid var(--roxo-200);
+  border-radius: var(--raio);
+}
+
+.acesso-criado dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.acesso-criado dt {
+  color: var(--tinta-2);
+}
+
+.acesso-criado dd {
+  margin: 0;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.acesso-criado dd.senha {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.topbar .account a.minha-senha {
+  font-weight: 400;
+  color: var(--roxo-100);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

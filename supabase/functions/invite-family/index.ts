@@ -43,9 +43,22 @@ interface InviteBody {
   is_primary?: boolean;
   /** Override opcional do deep link de aceite (precisa estar no allow-list do Auth). */
   redirect_to?: string;
+  /**
+   * 'email' (padrão): convite por e-mail com link para criar a senha.
+   * 'senha': cria o acesso já confirmado com uma senha provisória, devolvida
+   * só nesta resposta para a equipe entregar à família (sem depender de e-mail).
+   */
+  modo?: "email" | "senha";
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Senha provisória legível: sem 0/O, 1/l/I, para ditar ou copiar à mão.
+const ALFABETO_SENHA = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function gerarSenhaProvisoria(tamanho = 10): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(tamanho));
+  return Array.from(bytes, (b) => ALFABETO_SENHA[b % ALFABETO_SENHA.length]).join("");
+}
 
 // Placeholder de deep link do app Expo (config.toml: additional_redirect_urls).
 // Trocar pelo scheme definitivo quando o app for scaffoldado (Fase 4).
@@ -195,6 +208,74 @@ Deno.serve(async (req: Request): Promise<Response> => {
       await admin.from("families").delete().eq("id", familyId);
     }
   };
+
+  // --- 4a. Acesso com senha provisória (sem e-mail) ---
+  if (body.modo === "senha") {
+    const senha = gerarSenhaProvisoria();
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email,
+      password: senha,
+      email_confirm: true,
+      user_metadata: { family_id: familyId, display_name: displayName },
+    });
+    if (createError || !created?.user) {
+      const alreadyExists =
+        createError?.status === 422 ||
+        /already.*(registered|exists)/i.test(createError?.message ?? "");
+      await rollback();
+      return jsonResponse(alreadyExists ? 409 : 500, {
+        error: alreadyExists ? "email_already_registered" : "user_create_failed",
+        detail: createError?.message,
+      });
+    }
+
+    const { error: guardianError } = await admin.from("guardians").upsert(
+      {
+        user_id: created.user.id,
+        family_id: familyId,
+        display_name: displayName,
+        relationship: body.relationship ?? null,
+        is_primary: isPrimary,
+      },
+      { onConflict: "user_id,family_id", ignoreDuplicates: true },
+    );
+    if (guardianError) {
+      await rollback(created.user);
+      if (guardianError.code === "23505") {
+        return jsonResponse(409, { error: "primary_already_set", detail: guardianError.message });
+      }
+      return jsonResponse(500, { error: "guardian_insert_failed", detail: guardianError.message });
+    }
+
+    const agora = new Date().toISOString();
+    const { data: inviteRow, error: inviteRowError } = pendingInvite
+      ? await admin
+          .from("family_invites")
+          .update({ accepted_at: agora })
+          .eq("id", pendingInvite.id)
+          .select("id, expires_at")
+          .single()
+      : await admin
+          .from("family_invites")
+          .insert({ family_id: familyId, email, invited_by: caller.id, accepted_at: agora })
+          .select("id, expires_at")
+          .single();
+    if (inviteRowError || !inviteRow) {
+      await rollback(created.user);
+      return jsonResponse(500, { error: "invite_log_failed", detail: inviteRowError?.message });
+    }
+
+    return jsonResponse(201, {
+      family_id: familyId,
+      family_created: createdFamily,
+      invited_user_id: created.user.id,
+      invite_id: inviteRow.id,
+      expires_at: inviteRow.expires_at,
+      resent: false,
+      modo: "senha",
+      senha_provisoria: senha,
+    });
+  }
 
   // --- 4. Convite por e-mail (cria o auth.user em estado "invited") ---
   // family_id vai em user_metadata só como atalho para o onboarding;

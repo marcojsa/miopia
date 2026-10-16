@@ -16,6 +16,7 @@
 #   test       roda os testes pgTAP no servidor
 #   smoke      roda scripts/smoke-rls.mjs pelo túnel
 #   convite    roda scripts/convite-e2e.mjs pelo túnel
+#   senha      roda scripts/acesso-senha-e2e.mjs pelo túnel (acesso sem e-mail)
 #   sql        executa SQL vindo da entrada padrão: echo "select 1" | bash scripts/dev-remoto.sh sql
 #   status     mostra containers e o estado do túnel
 set -u
@@ -57,11 +58,13 @@ case "${1:-}" in
     (cd "$RAIZ" && node scripts/smoke-rls.mjs) ;;
   convite)
     (cd "$RAIZ" && LUMI_SQL_REMOTO=1 node scripts/convite-e2e.mjs) ;;
+  senha)
+    (cd "$RAIZ" && node scripts/acesso-senha-e2e.mjs) ;;
   sql)
     remoto "docker exec -i supabase_db_miopia-app psql -U postgres -d postgres -At -v ON_ERROR_STOP=1" ;;
   status)
     remoto "docker ps --format '{{.Names}} {{.Status}}' | grep miopia; free -h | head -2"
     tunel_ativo && echo "túnel: ativo" || echo "túnel: fechado" ;;
   *)
-    sed -n '2,25p' "$0"; exit 1 ;;
+    sed -n '2,26p' "$0"; exit 1 ;;
 esac
